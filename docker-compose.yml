@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # 後端 API 服務 (Node.js)
+  api:
+    build: .
+    container_name: squat-api
+    restart: unless-stopped
+    # 將 person.csv 映射到容器內部，確保容器內對 person.csv 的寫入可以持續
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "3000:3000"
+    networks:
+      - squat-network
+
+  # 前端靜態檔案服務 (Nginx)
+  frontend:
+    image: nginx:alpine
+    container_name: squat-frontend
+    volumes:
+      # 將所有前端檔案 (HTML, CSS, JS, videos) 映射到 Nginx 的預設靜態服務目錄
+      - .:/usr/share/nginx/html
+    ports:
+      - "80:80"  # 將容器的 80 port 映射到本機的 80 port
+    networks:
+      - squat-network
+    depends_on:
+      - api
+
+networks:
+  squat-network:
+    driver: bridge
