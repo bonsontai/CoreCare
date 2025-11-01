@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即時姿勢辨識應用 (TM)</title>
+    <!-- 載入 Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 設定字型為 Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+        }
+        /* 確保攝影機和結果容器能夠流暢佈局 */
+        #webcam-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            transform: scaleX(-1); /* 水平翻轉攝影機畫面 */
+        }
+        #label-container {
+            min-height: 100px;
+        }
+    </style>
+    <!-- 載入 TensorFlow.js 和 Teachable Machine 姿勢函式庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+</head>
+<body class="p-4 sm:p-8 flex flex-col items-center min-h-screen">
+
+    <div class="max-w-4xl w-full">
+        <!-- 標題與說明 -->
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-2 text-center">Teachable Machine 姿勢辨識</h1>
+        <p class="text-gray-600 mb-6 text-center">請貼上您的模型共享連結並點擊開始，以獲取最精確的姿勢分類結果。</p>
+
+        <!-- 模型連結輸入區 -->
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+            <label for="modelUrl" class="block text-sm font-medium text-gray-700 mb-2">模型共享連結 (TM Link)</label>
+            <input type="text" id="modelUrl" 
+                   value="PLACE_YOUR_TEACHABLE_MACHINE_LINK_HERE" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="請在此處貼上您從 TM 匯出的連結，例如：https://teachablemachine.withgoogle.com/models/xxxxxx/">
+            
+            <button id="startButton" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
+                啟動攝影機並載入模型
+            </button>
+            <p id="loadingStatus" class="mt-3 text-sm text-center font-medium text-indigo-600">
+                <!-- 狀態訊息會顯示在這裡 -->
+            </p>
+        </div>
+
+        <!-- 攝影機與結果顯示區 -->
+        <div id="webcam-container" class="bg-gray-900">
+            <!-- 攝影機畫面將被插入此處 -->
+        </div>
+
+        <div id="label-container" class="mt-4 bg-white p-6 rounded-xl shadow-lg">
+            <p class="text-lg font-semibold text-gray-800 mb-3">即時分類結果：</p>
+            <!-- 預測結果將顯示在這裡 -->
+        </div>
+        
+    </div>
+
+    <script>
+        // Teachable Machine 相關變數
+        let model, webcam, maxPredictions;
+        
+        // --- 設定模型連結 ---
+        const URL_INPUT = document.getElementById('modelUrl');
+        const START_BUTTON = document.getElementById('startButton');
+        const LOADING_STATUS = document.getElementById('loadingStatus');
+        const WEBCAM_CONTAINER = document.getElementById('webcam-container');
+        const LABEL_CONTAINER = document.getElementById('label-container');
+
+        START_BUTTON.addEventListener('click', init);
+
+        // 載入模型和設定攝影機
+        async function init() {
+            const URL = URL_INPUT.value.trim();
+            if (!URL || URL === 'PLACE_YOUR_TEACHABLE_MACHINE_LINK_HERE') {
+                LOADING_STATUS.textContent = "請先輸入有效的模型共享連結！";
+                LOADING_STATUS.classList.remove('text-indigo-600');
+                LOADING_STATUS.classList.add('text-red-600');
+                return;
+            }
+
+            START_BUTTON.disabled = true;
+            LOADING_STATUS.textContent = "正在載入模型，請稍候...";
+            LOADING_STATUS.classList.remove('text-red-600');
+            LOADING_STATUS.classList.add('text-indigo-600');
+
+            try {
+                // 載入模型 (Teachable Machine 的專有邏輯)
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+                model = await tmPose.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                // 啟動攝影機
+                const flip = true; // 左右翻轉，讓使用者感覺自然
+                webcam = new tmPose.Webcam(200, 200, flip); // 預設尺寸 200x200
+                await webcam.setup(); // 要求攝影機權限
+                await webcam.play();
+                
+                // 清空並插入攝影機畫面
+                WEBCAM_CONTAINER.innerHTML = '';
+                WEBCAM_CONTAINER.appendChild(webcam.canvas);
+                
+                // 創建結果顯示區
+                LABEL_CONTAINER.innerHTML = '<p class="text-lg font-semibold text-gray-800 mb-3">即時分類結果：</p>';
+                for (let i = 0; i < maxPredictions; i++) {
+                    LABEL_CONTAINER.innerHTML += `<div id="label-${i}" class="text-gray-700 py-1">等待偵測...</div>`;
+                }
+
+                LOADING_STATUS.textContent = "模型載入完成，攝影機已啟動！";
+                window.requestAnimationFrame(loop);
+            } catch (error) {
+                LOADING_STATUS.textContent = `載入失敗！錯誤訊息：${error.message} (請確認連結正確性)`;
+                LOADING_STATUS.classList.remove('text-indigo-600');
+                LOADING_STATUS.classList.add('text-red-600');
+                START_BUTTON.disabled = false;
+                console.error(error);
+            }
+        }
+
+        // 預測迴圈
+        async function loop() {
+            webcam.update(); // 更新攝影機畫面
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        // 核心預測函式
+        async function predict() {
+            // Teachable Machine 專有步驟：預測姿勢 (這是關鍵，它包含了準確的特徵工程)
+            const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+            
+            // 執行分類
+            const prediction = await model.predict(posenetOutput);
+
+            // 顯示結果
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction = prediction[i].className + ": " + prediction[i].probability.toFixed(2) * 100 + "%";
+                const labelElement = document.getElementById(`label-${i}`);
+                if (labelElement) {
+                    labelElement.innerHTML = `<span class="font-medium">${prediction[i].className}:</span> <span class="text-lg">${(prediction[i].probability * 100).toFixed(1)}%</span>`;
+                    
+                    // 高亮顯示最高機率的分類
+                    if (prediction[i].probability > 0.7) {
+                        labelElement.classList.add('font-bold', 'text-green-600');
+                    } else {
+                        labelElement.classList.remove('font-bold', 'text-green-600');
+                    }
+                }
+            }
+
+            // 繪製骨架點 (可選)
+            if (pose) {
+                drawPose(pose);
+            }
+        }
+
+        // 繪製骨架點到 Canvas 上
+        function drawPose(pose) {
+            if (webcam.canvas) {
+                const ctx = webcam.canvas.getContext("2d");
+                ctx.drawImage(webcam.canvas, 0, 0);
+                
+                // 僅在有 pose 數據時繪製骨架點
+                if (pose) {
+                    const minPartConfidence = 0.5;
+                    tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+                    tmPose.drawSkeleton(pose.skeleton, minPartConfidence, ctx);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

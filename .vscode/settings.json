@@ -1,0 +1,7 @@
+{
+    "liveServer.settings.exclude": [
+        "**/../person.csv",      // 排除根目錄或任何子目錄下的 person.csv
+        "**/.vscode/**",
+        "**/node_modules/**"
+    ]
+}
