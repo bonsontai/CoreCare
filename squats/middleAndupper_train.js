@@ -141,7 +141,7 @@ window.SquatTrainer = {
     console.log(`[LOG] 動作成功！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`); // 添加日誌
 
     // 檢查里程碑 1: 前 3 下全對
-    if (this.correctCount === 3 && this.errorCount === 0) {
+    if (this.correctCount === 1 && this.errorCount === 0) {
       this.isTraining = false;
       this.resetState('IDLE');
 
