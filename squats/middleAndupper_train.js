@@ -166,7 +166,7 @@ window.SquatTrainer = {
     }
 
     // 檢查里程碑 4: 總共 10 次正確
-    if (this.correctCount === 10) {
+    if (this.correctCount === 2) {
       this.isTraining = false;
       this.resetState('IDLE');
 
