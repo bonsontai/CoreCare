@@ -166,13 +166,13 @@ window.SquatTrainer = {
     }
 
     // 檢查里程碑 4: 總共 10 次正確
-    if (this.correctCount === 2) {
+    if (this.correctCount === 10) {
       this.isTraining = false;
       this.resetState('IDLE');
 
       this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！', 'success', [
         {
-          text: '回到主選單 (已禁用)', // 🚨 更改按鈕文字
+          text: '回到主選單', // 🚨 更改按鈕文字
           action: async () => {
             // "完成" 代表 "維持" 目前等級
             const currentLevel = window.currentTrainLevel || 'middle';
