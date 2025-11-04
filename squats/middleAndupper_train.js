@@ -103,9 +103,9 @@ window.SquatTrainer = {
       case 'IDLE':
         if (poseName === '站') {
           this.currentState = 'STARTED_STAND';
-          this.showCoachMessage('動作開始', '偵測到「站」，請下蹲至定點。', 'info');
+          this.showCoachMessage('動作開始', '偵測到「站」，請下蹲至接近椅面即可。', 'info');
           this.clearTimers();
-          this.sitTimeoutTimer = setTimeout(() => { this.logError('錯誤：20秒內未偵測到「坐」。'); }, this.SIT_TIMEOUT_DURATION);
+          this.sitTimeoutTimer = setTimeout(() => { this.logError('錯誤：20秒內未達「底點」。'); }, this.SIT_TIMEOUT_DURATION);
         }
         break;
       case 'STARTED_STAND':
@@ -145,7 +145,7 @@ window.SquatTrainer = {
       this.isTraining = false;
       this.resetState('IDLE');
 
-      this.showCoachMessage('表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [
+      this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [
         {
           text: '進階訓練',
           action: async () => {
