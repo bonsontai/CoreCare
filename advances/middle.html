@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>壺鈴訓練畫面 (TM)</title>
+  <link rel="stylesheet" href="squat_styles.css">
+  <!-- 引入 Teachable Machine & TensorFlow JS 函式庫 -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- Frame 1: 訓練等級標題 -->
+    <div class="frame1 box">
+      <h3 class="title is-3" id="levelTitle">壺鈴提舉</h3>
+    </div>
+
+    <!-- Frame 2: 訓練提示 -->
+    <div class="frame2 box">
+      <div class="text-box" id="trainPrompt">請準備一張堅固的椅子，進行座椅輔助深蹲</div>
+    </div>
+
+    <!-- Frame 3: Teachable Machine 畫面與示範影片 -->
+    <div class="frame3 box">
+      <div class="frame3-content">
+        <!-- 您的實時影像 (使用 Canvas 顯示 TM 輸出) -->
+        <div class="video-container">
+          <h4 style="color: #2c3e50; font-size: 16px;">您的實時影像 (TM)</h4>
+          <!-- 這裡使用 canvas 接收攝像頭影像並繪製骨架 -->
+          <canvas id="canvas"></canvas>
+        </div>
+
+        <!-- 示範影片 -->
+        <div class="video-container">
+          <h4 style="color: #2c3e50; font-size: 16px;">動作示範影片</h4>
+          <video id="train-video" autoplay muted loop>
+            <source src="../videos/sample1.mp4" type="video/mp4" />
+            您的瀏覽器不支援影片播放。
+          </video>
+        </div>
+      </div>
+
+      <!-- 姿勢回饋訊息區：包含 TM 分類結果 和 教練訊息 -->
+      <div id="feedback-message-area">
+        <!-- 2. 教練訊息卡片 (原來的結構) -->
+        <article class="message" id="coach-message">
+          <div class="message-header">
+            <p id="message-title">訊息標題</p>
+            <button class="delete" aria-label="delete" id="close-coach-message"></button>
+          </div>
+          <div class="message-body">
+            <span id="message-body-text">訊息內容</span>
+            <div style="text-align: right; margin-top: 10px;">
+              <button class="button" id="next-step-button" style="background-color: #3498db; color: white;">下一步</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- 控制與狀態區域 -->
+    <div class="control-area">
+      <button id="startButton">啟動姿勢偵測</button>
+
+      <div class="stats-display">
+        <div id="status-message" style="color: #e74c3c;">等待啟動...</div>
+        <div class="counts-display">
+          <span>正確: <span id="correct-count">0</span></span>
+          <span style="margin-left: 15px;">錯誤: <span id="error-count">0</span></span>
+        </div>
+      </div>
+
+      <button id="trainButton">開始訓練</button>
+    </div>
+
+  </div>
+
+  <script src="middle.js"></script>
+  <script src="middleAndupper_train.js"></script>
+
+</body>
+
+</html>
