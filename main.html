@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Main Menu</title>
+    <title>Menu</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
     <style>
       /* 讓 .section 填滿 iframe 並垂直置中 */
@@ -98,23 +98,23 @@
 
         // 1. "個人資料" 按鈕
         document.getElementById('person-button').addEventListener('click', () => {
-          // 找到 home.html 中 [data-src="person.html"] 的按鈕
+          // 找到 index.html 中 [data-src="person.html"] 的按鈕
           const link = parentDoc.querySelector('[data-src="person.html"]');
           if (link) {
             link.click(); // 模擬點擊
           } else {
-            console.error('在 home.html 中找不到 person.html 的連結');
+            console.error('在 index.html 中找不到 person.html 的連結');
           }
         });
 
         // 2. "深蹲訓練" 按鈕
         document.getElementById('squat-link').addEventListener('click', () => {
-          // 觸發 home.html 上的 "深蹲訓練" 按鈕
-          const link = parentDoc.querySelector('[data-src="squats/middle.html"]');
+          // 觸發 index.html 上的 "深蹲訓練" 按鈕
+          const link = parentDoc.getElementById('squat-training-link');
           if (link) {
             link.click(); // 這會觸發 home.html 上的 "讀取CSV" 智慧型邏輯
           } else {
-            console.error('在 home.html 中找不到 squats/middle.html 的連結');
+            console.error('在 index.html 中找不到 squats/middle.html 的連結');
           }
         });
 
