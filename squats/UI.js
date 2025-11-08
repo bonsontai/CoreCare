@@ -2,15 +2,22 @@
 // 1. Teachable Machine 核心邏輯
 // ------------------------------------------------------------------
 
-// 🌟 核心修改：使用公共 URL 替換本地路徑
-const TM_MODEL_URL = "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/";
+// 🌟 核心修改：定義模型 URL 映射表，實現動態載入
+// 根據 CSV 讀取到的 currentTrainLevel，選擇對應的模型 URL
+const MODEL_URLS = {
+  // 範例：假設所有等級都使用不同的模型
+  'upperpro': "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/",
+  'upper': "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/",
+  'middle': "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/", // Middle/Upper 使用的模型
+  'lower': "https://teachablemachine.withgoogle.com/models/akY-bmRdS/", // Lower 使用的模型 (已修正空格)
+};
 
 let model, webcam, ctx, labelContainer, maxPredictions;
-let lastRawPose = null;       // 儲存上一幀偵測到的原始姿勢
-let poseFrameCounter = 0;   // 連續相同姿勢的計數器
+let lastRawPose = null;       // 儲存上一幀偵測到的原始姿勢
+let poseFrameCounter = 0;   // 連續相同姿勢的計數器
 const POSE_CONFIRM_FRAMES = 3;
 let currentStream = null;
-window.currentTrainLevel = null; // *** 新增：儲存當前訓練等級 ***
+window.currentTrainLevel = null; // *** 儲存當前訓練等級 ***
 
 // UI 元素
 const startButton = document.getElementById('startButton');
@@ -26,13 +33,27 @@ async function init() {
     webcam.stop(); // 如果已經啟動，先停止
   }
 
-  statusMessage.textContent = '載入模型中...';
+  // *** 核心變動：根據 currentTrainLevel 選擇模型 URL ***
+  const level = window.currentTrainLevel || 'middle'; // 確保有預設值
+  const tmModelBaseUrl = MODEL_URLS[level];
+
+  if (!tmModelBaseUrl) {
+    statusMessage.style.color = '#e74c3c';
+    statusMessage.textContent = `錯誤：找不到對應訓練等級 (${level}) 的模型連結！`;
+    startButton.disabled = false;
+    return;
+  }
+
+  statusMessage.textContent = `載入模型中 (等級: ${level})...`;
   startButton.disabled = true;
 
-  const modelURL = TM_MODEL_URL + "model.json";
-  const metadataURL = TM_MODEL_URL + "metadata.json";
+  // *** 修正: 使用動態選擇的 tmModelBaseUrl 替換 TM_MODEL_URL ***
+  const modelURL = tmModelBaseUrl + "model.json";
+  const metadataURL = tmModelBaseUrl + "metadata.json";
 
+  // 載入模型
   try {
+    // 載入外部 URL
     model = await tmPose.load(modelURL, metadataURL);
     maxPredictions = model.getTotalClasses();
   } catch (error) {
@@ -43,9 +64,9 @@ async function init() {
     return;
   }
 
-  // 設置攝像頭尺寸
-  let sizeW = 1080;
-  let sizeH = 1080;
+  // 設置攝像頭
+  let sizeW = 1080; // 預設值
+  let sizeH = 1080; // 預設值
 
   const flip = true;
 
@@ -133,7 +154,7 @@ async function predict() {
 
 
   // 6. 更新 UI 狀態訊息 (保持即時反應)
-  //    我們仍然顯示 rawPredictedClass，讓使用者看到即時偵測
+  //    我們仍然顯示 rawPredictedClass，讓使用者看到即時偵測
   if (maxProb > 0.8) {
     statusMessage.textContent = `姿勢：${rawPredictedClass} (${(maxProb * 100).toFixed(0)}%)`;
     statusMessage.style.color = '#3498db';
@@ -150,7 +171,7 @@ async function predict() {
   }
 
   // 7. 將「已確認」的姿勢(confirmedPose)傳遞給訓練狀態機
-  //    注意：這裡傳遞的是 confirmedPose，而不是 rawPredictedClass
+  //    注意：這裡傳遞的是 confirmedPose，而不是 rawPredictedClass
   if (window.SquatTrainer) {
     window.SquatTrainer.processPose(confirmedPose);
   }
