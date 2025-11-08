@@ -153,7 +153,8 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const msgBox = document.getElementById('message-box');
       try {
-        const response = await fetch('person.csv', { cache: 'no-store' });
+        const urlWithCacheBuster = 'person.csv?t=' + Date.now();
+        const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
         if (!response.ok) {
           throw new Error(`讀取檔案失敗。 伺服器回應: ${response.status} ${response.statusText}`);
         }
