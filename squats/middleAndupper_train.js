@@ -256,8 +256,8 @@ window.SquatTrainer = {
       Posen: window.currentTrainLevel || 'lower', // 這次做的等級
       Level: levelResult,
 
-      Squats_FE: this.errorCount, // 對應 CSV 的 Squats_FE
-      Squats_TE: this.correctCount, // 對應 CSV 的 Squats_TE
+      Squats_FE: this.errorCount,
+      Squats_TE: this.correctCount,
       Advances_FE: 0,
       Advances_TE: 0,
       Sitting_FE: 0,

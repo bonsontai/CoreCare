@@ -318,12 +318,12 @@ window.SquatTrainer = {
             Posen: window.currentTrainLevel || 'lower', // 這次做的等級
             Level: levelResult,
 
-            Squats_FE: this.errorCount, // 對應 CSV 的 Squats_FE
-            Squats_TE: this.correctCount, // 對應 CSV 的 Squats_TE
+            Squats_FE: this.errorCount,
+            Squats_TE: this.correctCount,
             Advances_FE: '',
             Advances_TE: '',
-            Sitting_FE: '', 
-            Sitting_TE: '', 
+            Sitting_FE: '',
+            Sitting_TE: '',
             NextSquatsLevel: nextLevelPosen, // 對應 CSV 的 last_squats_train_level (使用 NextSquatsLevel 簡稱)
             NextAdvancesLevel: '', // 對應 CSV 的 last_advances_train_level
             NextSittingLevel: '' // 對應 CSV 的 last_sitting_train_level
