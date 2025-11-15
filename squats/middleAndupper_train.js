@@ -253,11 +253,18 @@ window.SquatTrainer = {
 
     const data = {
       Tid: new Date().toISOString(),
-      Posen: window.currentTrainLevel || 'unknown', // 這次做的等級
+      Posen: window.currentTrainLevel || 'lower', // 這次做的等級
       Level: levelResult,
-      FE: this.errorCount,
-      TE: this.correctCount,
-      NextPosen: nextLevelPosen // 下次要做的等級
+
+      Squats_FE: this.errorCount, // 對應 CSV 的 Squats_FE
+      Squats_TE: this.correctCount, // 對應 CSV 的 Squats_TE
+      Advances_FE: 0,
+      Advances_TE: 0,
+      Sitting_FE: 0,
+      Sitting_TE: 0,
+      NextSquatsLevel: nextLevelPosen, // 對應 CSV 的 last_squats_train_level (使用 NextSquatsLevel 簡稱)
+      NextAdvancesLevel: '', // 對應 CSV 的 last_advances_train_level
+      NextSittingLevel: '' // 對應 CSV 的 last_sitting_train_level
     };
 
     console.log('準備儲存資料:', data);

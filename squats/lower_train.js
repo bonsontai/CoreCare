@@ -12,12 +12,15 @@ window.SquatTrainer = {
     errorCount: 0,
     isSessionSaved: false,
 
+    lastAdvancesLevel: '',
+    lastSittingLevel: '',
+
     // --- Lower Level Specifics (State & Timers removed for simplicity) ---
     // Lower Level Pose Names
     LOWER_POSE_STAND: 'stand',
     LOWER_POSE_SQUAT: 'squat',
-    LOWER_POSE_ERROR: 'error', 
-    
+    LOWER_POSE_ERROR: 'error',
+
     // UI Elements
     coachMessage: null,
     coachHeader: null,
@@ -45,16 +48,53 @@ window.SquatTrainer = {
         this.coachCloseButton = document.getElementById('close-coach-message');
         this.coachNextButton = document.getElementById('next-step-button');
         this.coachButtonContainer = this.coachNextButton ? this.coachNextButton.parentElement : null;
-        
+
         if (!this.trainButton || !this.correctCountDisplay || !this.errorCountDisplay || !this.coachMessage || !this.coachHeader || !this.coachTitle || !this.coachBody || !this.coachCloseButton || !this.coachButtonContainer) {
             console.error("訓練器初始化失敗：找不到必要的 UI 元素。"); return;
         }
 
+        this.getOtherTrainLevels();
         this.trainButton.addEventListener('click', () => this.toggleTraining());
         this.coachNextButton.style.display = 'none';
         this.coachButtonContainer.innerHTML = '';
         this.coachCloseButton.addEventListener('click', () => this.hideCoachMessage());
         this.updateUI();
+    },
+
+    getOtherTrainLevels: async function () {
+        try {
+            const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+            const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
+
+            if (!response.ok) {
+                // 如果讀取失敗，保持等級為空字串
+                console.warn("無法讀取 person.csv，其他訓練等級將設為預設空值。");
+                return;
+            }
+            const csvText = await response.text();
+
+            const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+            if (lines.length < 2) return; // 只有標頭
+
+            const headers = lines[0].split(',').map(h => h.trim());
+            const lastDataLine = lines[lines.length - 1];
+            const values = lastDataLine.split(',');
+
+            const advanceIndex = headers.findIndex(h => h.toLowerCase() === 'last_advances_train_level');
+            const sittingIndex = headers.findIndex(h => h.toLowerCase() === 'last_sitting_train_level');
+
+            if (advanceIndex !== -1 && values[advanceIndex]) {
+                this.lastAdvancesLevel = values[advanceIndex].trim();
+            }
+            if (sittingIndex !== -1 && values[sittingIndex]) {
+                this.lastSittingLevel = values[sittingIndex].trim();
+            }
+
+            console.log(`[LOG] 讀取上次建議：壺鈴(${this.lastAdvancesLevel})，坐姿(${this.lastSittingLevel})`);
+
+        } catch (error) {
+            console.error('讀取上次訓練等級失敗:', error);
+        }
     },
 
     /* 訓練控制*/
@@ -115,19 +155,19 @@ window.SquatTrainer = {
                     this.showCoachMessage('動作開始', '偵測到「站」，請緩慢下蹲。', 'info');
                 }
                 break;
-            
+
             case 'STANDING':
                 // 從站立進入下蹲底點
-                if (poseName === this.LOWER_POSE_SQUAT) { 
-                    this.currentState = 'SQUATTING'; 
+                if (poseName === this.LOWER_POSE_SQUAT) {
+                    this.currentState = 'SQUATTING';
                     this.showCoachMessage('到達定點', '偵測到「蹲」，請緩慢站起。', 'info');
                 }
                 // 如果是 stand，則維持 STANDING 狀態等待 squat
                 break;
-            
+
             case 'SQUATTING':
                 // 從下蹲底點進入站立 (Success Condition: stand > squat)
-                if (poseName === this.LOWER_POSE_STAND) { 
+                if (poseName === this.LOWER_POSE_STAND) {
                     this.logSuccess(); // 動作完成
                 }
                 // 如果是 squat，則維持 SQUATTING 狀態等待 stand
@@ -143,7 +183,7 @@ window.SquatTrainer = {
         this.updateUI();
         this.resetState('IDLE');
         console.log(`[LOG] 動作成功！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`);
-        
+
         const totalAttempts = this.correctCount + this.errorCount;
 
         // 檢查里程碑 1: 前 3 次測試結束 (3 Correct / 0 Error)
@@ -183,7 +223,7 @@ window.SquatTrainer = {
 
             this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！', 'success', [
                 {
-                    text: '回到主選單', 
+                    text: '回到主選單',
                     action: async () => {
                         const currentLevel = window.currentTrainLevel || 'lower';
                         await this.saveTrainingData('complete', currentLevel);
@@ -259,7 +299,7 @@ window.SquatTrainer = {
         if (totalAttempts !== 3) { // 避免在 mixed results 時重複顯示
             this.showCoachMessage('姿勢錯誤', message, 'error');
         }
-        
+
         setTimeout(() => {
             if (this.isTraining) {
                 this.showCoachMessage('重新開始', '請重新從「站」姿開始。', 'info');
@@ -277,9 +317,16 @@ window.SquatTrainer = {
             Tid: new Date().toISOString(),
             Posen: window.currentTrainLevel || 'lower', // 這次做的等級
             Level: levelResult,
-            FE: this.errorCount,
-            TE: this.correctCount,
-            NextPosen: nextLevelPosen // 下次要做的等級
+
+            Squats_FE: this.errorCount, // 對應 CSV 的 Squats_FE
+            Squats_TE: this.correctCount, // 對應 CSV 的 Squats_TE
+            Advances_FE: '',
+            Advances_TE: '',
+            Sitting_FE: '', 
+            Sitting_TE: '', 
+            NextSquatsLevel: nextLevelPosen, // 對應 CSV 的 last_squats_train_level (使用 NextSquatsLevel 簡稱)
+            NextAdvancesLevel: '', // 對應 CSV 的 last_advances_train_level
+            NextSittingLevel: '' // 對應 CSV 的 last_sitting_train_level
         };
 
         console.log('準備儲存資料:', data);
@@ -356,7 +403,7 @@ window.SquatTrainer = {
         console.log(`動態等級計算: ${current} -> ${type} -> ${levels[newIndex].level}`);
         return levels[newIndex];
     },
-    
+
     // --- 顯示教練訊息卡片 ---
     showCoachMessage: function (title, body, type = 'info', buttons = []) {
         if (!this.coachMessage) return;
@@ -404,7 +451,7 @@ window.SquatTrainer = {
     resetState: function (newState) {
         this.currentState = newState;
         // 在 Lower Level 中沒有 Timers，但保留 clearTimers 函式體
-        this.clearTimers(); 
+        this.clearTimers();
     },
     clearTimers: function () {
         // Lower Level 無需清除 Timers

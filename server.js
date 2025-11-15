@@ -32,9 +32,20 @@ app.post('/save-data', (req, res) => {
         data.Tid,
         data.Posen,
         data.Level,
-        data.FE,
-        data.TE,
-        data.NextPosen || '' // NextPosen 就是您要儲存的 last_squats_train_level
+        
+        // 錯誤與正確次數 (若前端未提供，則設為空字串 '')
+        data.Squats_FE || '', 
+        data.Squats_TE || '', 
+        data.Advances_FE || '', 
+        data.Advances_TE || '', 
+        data.Sitting_FE || '',  
+        data.Sitting_TE || '',  
+
+        // 建議等級 (若前端未提供，則設為空字串 '')
+        // 注意：這裡必須使用前端傳入的完整屬性名稱，以確保不遺漏
+        data.NextSquatsLevel || '',  
+        data.NextAdvancesLevel || '', 
+        data.NextSittingLevel || ''  
     ].join(',');
 
     // 換行符號

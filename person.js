@@ -3,11 +3,17 @@
     // 欄位標頭翻譯
     const HEADER_MAP = {
         'Tid': '時間',
-        'Posen': '訓練等級',
+        'Posen': '本次等級', 
         'Level': '訓練結果',
-        'FE': '錯誤次數',
-        'TE': '正確次數',
-        'last_squats_train_level': '下次等級建議'
+        'Squats_FE': '深蹲-錯',
+        'Squats_TE': '深蹲-對',
+        'Advances_FE': '壺鈴-錯',
+        'Advances_TE': '壺鈴-對',
+        'Sitting_FE': '坐姿-錯',
+        'Sitting_TE': '坐姿-對',
+        'last_squats_train_level': '深蹲建議',
+        'last_advances_train_level': '壺鈴建議',
+        'last_sitting_train_level': '坐姿建議'
     };
     
     // 訓練等級 (Posen / last_squats_train_level) 翻譯
