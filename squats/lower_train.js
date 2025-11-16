@@ -12,6 +12,8 @@ window.SquatTrainer = {
     errorCount: 0,
     isSessionSaved: false,
 
+    isTrainingPaused: false,
+
     lastAdvancesLevel: '',
     lastSittingLevel: '',
 
@@ -139,10 +141,11 @@ window.SquatTrainer = {
      * 核心函式：由 HTML 中的 predict() 呼叫 - **Lower Level 邏輯**
      */
     processPose: function (poseName) {
-        if (!this.isTraining || poseName === "N/A") return;
+        if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return; // 檢查暫停狀態
 
         // 1. 檢查是否觸發即時錯誤姿勢 (New Rule)
         if (poseName === this.LOWER_POSE_ERROR) {
+            // 直接呼叫 logError，讓它處理暫停和里程碑檢查
             this.logError('偵測到錯誤姿勢 (Error Pose)！請重新調整。');
             return;
         }
@@ -225,8 +228,8 @@ window.SquatTrainer = {
                 {
                     text: '回到主選單',
                     action: async () => {
-                        const currentLevel = window.currentTrainLevel || 'lower';
-                        await this.saveTrainingData('complete', currentLevel);
+                        const nextLevel = this.getDynamicLevel('promote');
+                        await this.saveTrainingData('promote_auto', nextLevel.level);
                         console.error("【跳轉主選單】資料儲存完畢。");
                         // 導向主選單 (假設 main.html 在上層目錄)
                         window.location.href = '../main.html';
@@ -296,15 +299,22 @@ window.SquatTrainer = {
         }
 
         // --- 標準錯誤訊息 ---
-        if (totalAttempts !== 3) { // 避免在 mixed results 時重複顯示
-            this.showCoachMessage('姿勢錯誤', message, 'error');
-        }
+        if (this.isTraining && totalAttempts !== 3 && this.errorCount < 5) {
 
-        setTimeout(() => {
-            if (this.isTraining) {
-                this.showCoachMessage('重新開始', '請重新從「站」姿開始。', 'info');
-            }
-        }, 2000);
+            this.isTrainingPaused = true; // VVV 設置暫停 VVV
+
+            this.showCoachMessage('姿勢錯誤，請調整！', message, 'error', [
+                {
+                    text: '調整完成，繼續偵測',
+                    action: () => {
+                        this.isTrainingPaused = false; // ^^^ 解除暫停 ^^^
+                        this.hideCoachMessage();
+                        // 給予使用者提示，讓他們從「站」姿重新開始
+                        this.showCoachMessage('重新開始', '請回到「站」姿，繼續訓練。', 'info');
+                    }
+                }
+            ]);
+        }
     },
 
     /**

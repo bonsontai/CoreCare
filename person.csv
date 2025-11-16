@@ -1,3 +1,11 @@
 Tid,Posen,Level,Squats_FE,Squats_TE,Advances_FE,Advances_TE,Sitting_FE,Sitting_TE,last_squats_train_level,last_advances_train_level,last_sitting_train_level
 2025-11-15T13:07:17.029Z,lower,demote,3,0,,,,,lower,middle,middle
 2025-11-16T05:04:25.655Z,lower,demote,3,0,,,,,lower,middle,middle
+2025-11-16T13:05:23.536Z,lower,demote,3,0,,,,,lower,middle,middle
+2025-11-16T13:06:13.405Z,lower,complete,2,10,,,,,lower,middle,middle
+2025-11-16T13:19:39.718Z,lower,stopped,1,4,,,,,lower,middle,middle
+2025-11-16T13:41:02.794Z,lower,demote,5,1,,,,,lower,middle,middle
+2025-11-16T13:41:43.317Z,lower,promote_auto,0,10,,,,,middle,middle,middle
+
+2025-11-16T14:06:46.489Z,middle,stopped,2,2,,,,,middle,middle,middle
+2025-11-16T14:08:37.276Z,middle,promote_auto,3,10,,,,,upper,middle,middle

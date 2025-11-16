@@ -11,6 +11,10 @@ window.SquatTrainer = {
   errorCount: 0,
   isSessionSaved: false,
 
+  isTrainingPaused: false,
+  lastAdvancesLevel: '', // 儲存上次壺鈴建議等級
+  lastSittingLevel: '',  // 儲存上次坐姿建議等級
+  isDataLoaded: false,   // 歷史資料載入狀態
   // ( ... 計時器、常數、UI 元素綁定 ... )
   sitTimeoutTimer: null,
   sitHoldTimer: null,
@@ -46,11 +50,65 @@ window.SquatTrainer = {
     if (!this.trainButton || !this.correctCountDisplay || !this.errorCountDisplay || !this.coachMessage || !this.coachHeader || !this.coachTitle || !this.coachBody || !this.coachCloseButton || !this.coachButtonContainer) {
       console.error("訓練器初始化失敗：找不到必要的 UI 元素。"); return;
     }
+    this.trainButton.disabled = true;
+    this.trainButton.textContent = '載入歷史資料...';
+
+    this.getOtherTrainLevels()
+      .then(() => {
+        // 資料載入成功後
+        this.isDataLoaded = true;
+        this.trainButton.disabled = false;
+        this.trainButton.textContent = '開始訓練';
+        this.updateUI();
+      })
+      .catch(error => {
+        // 資料載入失敗 (即使失敗也要啟用按鈕，但等級為空)
+        console.error('歷史資料載入失敗，將使用預設空值。', error);
+        this.isDataLoaded = true;
+        this.trainButton.disabled = false;
+        this.trainButton.textContent = '開始訓練 (無歷史紀錄)';
+        this.updateUI();
+      });
     this.trainButton.addEventListener('click', () => this.toggleTraining());
     this.coachNextButton.style.display = 'none';
     this.coachButtonContainer.innerHTML = '';
     this.coachCloseButton.addEventListener('click', () => this.hideCoachMessage());
     this.updateUI();
+  },
+
+  getOtherTrainLevels: async function () {
+    try {
+      const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+      const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
+
+      if (!response.ok) {
+        console.warn("無法讀取 person.csv，其他訓練等級將設為預設空值。");
+        return;
+      }
+      const csvText = await response.text();
+
+      const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (lines.length < 2) return;
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const lastDataLine = lines[lines.length - 1];
+      const values = lastDataLine.split(',');
+
+      const advanceIndex = headers.findIndex(h => h.toLowerCase() === 'last_advances_train_level');
+      const sittingIndex = headers.findIndex(h => h.toLowerCase() === 'last_sitting_train_level');
+
+      if (advanceIndex !== -1 && values[advanceIndex]) {
+        this.lastAdvancesLevel = values[advanceIndex].trim();
+      }
+      if (sittingIndex !== -1 && values[sittingIndex]) {
+        this.lastSittingLevel = values[sittingIndex].trim();
+      }
+
+      console.log(`[LOG] 讀取上次建議：壺鈴(${this.lastAdvancesLevel})，坐姿(${this.lastSittingLevel})`);
+
+    } catch (error) {
+      console.error('讀取上次訓練等級失敗:', error);
+    }
   },
 
   /* 訓練控制*/
@@ -98,7 +156,7 @@ window.SquatTrainer = {
    * (此函式保持不變)
    */
   processPose: function (poseName) {
-    if (!this.isTraining || poseName === "N/A") return;
+    if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return;
     switch (this.currentState) {
       case 'IDLE':
         if (poseName === '站') {
@@ -174,11 +232,9 @@ window.SquatTrainer = {
         {
           text: '回到主選單', // 🚨 更改按鈕文字
           action: async () => {
-            // "完成" 代表 "維持" 目前等級
-            const currentLevel = window.currentTrainLevel || 'middle';
-            await this.saveTrainingData('complete', currentLevel);
+            const nextLevel = this.getDynamicLevel('promote');
+            await this.saveTrainingData('promote_auto', nextLevel.level);
             console.error("【跳轉主選單】資料儲存完畢。");
-            // 導向主選單 (假設 main.html 在上層目錄)
             window.location.href = '../main.html';
           }
         }
@@ -236,12 +292,22 @@ window.SquatTrainer = {
     }
 
     // --- 標準錯誤訊息 ---
-    this.showCoachMessage('姿勢錯誤', message, 'error');
-    setTimeout(() => {
-      if (this.isTraining) {
-        this.showCoachMessage('重新開始', '請重新從「站」姿開始。', 'info');
-      }
-    }, 2000);
+    if (this.isTraining && this.errorCount < 5 && !(this.errorCount === 3 && this.correctCount === 0)) {
+
+      this.isTrainingPaused = true; // VVV 設置暫停 VVV
+
+      this.showCoachMessage('姿勢錯誤，請調整！', message, 'error', [
+        {
+          text: '調整完成，繼續偵測',
+          action: () => {
+            this.isTrainingPaused = false; // ^^^ 解除暫停 ^^^
+            this.hideCoachMessage();
+            // 給予使用者提示，讓他們從「站」姿重新開始
+            this.showCoachMessage('重新開始', '請重新從「站」姿開始。', 'info');
+          }
+        }
+      ]);
+    }
   },
 
   /**

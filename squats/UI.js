@@ -173,6 +173,7 @@ async function predict() {
   // 7. 將「已確認」的姿勢(confirmedPose)傳遞給訓練狀態機
   //    注意：這裡傳遞的是 confirmedPose，而不是 rawPredictedClass
   if (window.SquatTrainer) {
+    
     window.SquatTrainer.processPose(confirmedPose);
   }
 
