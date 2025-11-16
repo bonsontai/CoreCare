@@ -320,13 +320,14 @@ window.SquatTrainer = {
 
             Squats_FE: this.errorCount,
             Squats_TE: this.correctCount,
-            Advances_FE: '',
+            Advances_FE: '', // 非活躍訓練的 FE/TE 設為空字串
             Advances_TE: '',
             Sitting_FE: '',
             Sitting_TE: '',
-            NextSquatsLevel: nextLevelPosen, // 對應 CSV 的 last_squats_train_level (使用 NextSquatsLevel 簡稱)
-            NextAdvancesLevel: '', // 對應 CSV 的 last_advances_train_level
-            NextSittingLevel: '' // 對應 CSV 的 last_sitting_train_level
+
+            NextSquatsLevel: nextLevelPosen,
+            NextAdvancesLevel: this.lastAdvancesLevel, // 帶入上次壺鈴等級
+            NextSittingLevel: this.lastSittingLevel // 帶入上次坐姿等級
         };
 
         console.log('準備儲存資料:', data);

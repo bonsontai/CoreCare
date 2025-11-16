@@ -24,6 +24,8 @@ app.use(cors());
 app.use(express.json());
 
 // --- 路由定義 ---
+app.use(express.static(path.join(__dirname)));
+
 
 // POST /save-data: 接收前端傳來的訓練資料
 app.post('/save-data', (req, res) => {
