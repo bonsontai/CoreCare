@@ -1,121 +1,135 @@
-// squats_level.js
+// squats_level.js (已修改為通用等級載入器)
 
-// 預設等級設定
+// 定義訓練類別與對應的 CSV 欄位名稱和資料夾路徑
+const TRAINING_MAP = {
+    'squats': { column: 'last_squats_train_level', folder: 'squats' },
+    'advances': { column: 'last_advances_train_level', folder: 'advances' },
+    'sitting': { column: 'last_sitting_train_level', folder: 'sitting' }
+    // 注意：請確保您的坐姿訓練頁面放在 'sitting' 資料夾中
+};
+
+const VALID_LEVELS = ['upperpro', 'upper', 'middle', 'lower'];
 const DEFAULT_LEVEL_KEY = 'middle';
-const DEFAULT_URL = `/squats/${DEFAULT_LEVEL_KEY}.html`;
 
-// 確保 DOM 元素載入完成後才執行
-document.addEventListener('DOMContentLoaded', () => {
-
-    // 1. 取得您設定的超連結元素
-    const link = document.getElementById('squat-training-link');
-
-    // ⭐ 新增: 取得 iFrame 元素 (您的 HTML 中 ID 是 'content')
-    const iframe = document.getElementById('content');
-
-    // 檢查元素是否存在，確保程式碼不會出錯
-    if (link && iframe) {
-        // 2. 綁定 'click' 事件處理器
-        link.addEventListener('click', (event) => {
-
-            // 阻止連結預設的導航行為
-            event.preventDefault();
-
-            console.log('正在嘗試讀取 person.csv 檔案...');
-
-            // 3. 使用 Fetch API 讀取 CSV 檔案
-            fetch('person.csv')
-                .then(response => {
-                    // 檢查 HTTP 狀態碼 (例如 404, 500)
-                    if (!response.ok) {
-                        // 如果檔案載入失敗 (例如 404)，則拋出錯誤，讓 catch 區塊處理
-                        throw new Error(`無法載入檔案: ${response.statusText} (${response.status})`);
-                    }
-                    // 將回應內容轉換為純文字
-                    return response.text();
-                })
-                .then(csvText => {
-                    // 4. 解析 CSV 文字內容並取得等級
-                    const readLevel = getTrainingLevelFromTable(csvText);
-
-                    // 5. 應用預設值的程式碼 (核心修正點)
-                    // 如果 readLevel 是 null 或無效字串，則採用 DEFAULT_LEVEL_KEY ('middle')
-                    const finalLevel = readLevel || DEFAULT_LEVEL_KEY;
-                    
-                    // 確保 finalLevel 是有效的訓練等級
-                    if (['upper', 'middle', 'lower', 'upperPro'].includes(finalLevel)) {
-                        
-                        // 假設訓練頁面位於 /squats/ 目錄
-                        let targetUrl = `/squats/${finalLevel}.html`;
-                        console.log(`訓練等級為 ${finalLevel}，載入 iFrame 連結: ${targetUrl}`);
-
-                        // ⭐ 關鍵修改: 執行 iFrame 載入
-                        iframe.src = targetUrl;
-                        
-                        // (您可能需要將這個 finalLevel 儲存到 window.currentTrainLevel 供訓練檔案使用)
-                        window.currentTrainLevel = finalLevel; 
-
-                        // 可選：點擊後讓該連結保持高亮
-                        document.querySelectorAll('.navbar-item').forEach(el => el.classList.remove('is-primary'));
-                        link.classList.add('is-primary');
-
-                    } else {
-                        // 如果從 CSV 讀取到的值是無效的等級名稱 (但不是 null)
-                        console.warn(`CSV 讀取到無效等級: ${readLevel}，已嘗試使用預設值 ${DEFAULT_LEVEL_KEY}`);
-                        
-                        // 確保無效等級也能載入預設頁面 (middle.html)
-                        iframe.src = DEFAULT_URL;
-                        window.currentTrainLevel = DEFAULT_LEVEL_KEY;
-                    }
-                })
-                .catch(error => {
-                    // 檔案讀取或網路錯誤處理 (例如 404)
-                    console.error('讀取檔案時發生錯誤，將使用預設等級:', error);
-                    
-                    // 錯誤時，直接載入預設頁面 (middle.html)
-                    iframe.src = DEFAULT_URL; 
-                    window.currentTrainLevel = DEFAULT_LEVEL_KEY;
-                });
-        });
-    } else {
-        console.error('CoreCare: 找不到深蹲連結按鈕或 content iFrame 元素。');
-    }
-});
 
 /**
  * 輔助函式：從表格格式 CSV 內容中提取最後一筆資料的訓練等級
- * (此函式已包含錯誤處理，並在錯誤時返回 null)
+ * 【已修改：接受目標欄位名稱作為參數】
+ * @param {string} csvContent - 整個 CSV 檔案的文字內容
+ * @param {string} targetColumnName - 要尋找的特定等級欄位名稱 (例如 'last_squats_train_level')
+ * @returns {string|null} - 返回建議的等級字串，否則為 null
  */
-function getTrainingLevelFromTable(csvText) {
-    // 1. 將內容按行分割，並過濾掉空行
-    csvText = csvText.replace(/^\uFEFF/, '');
-    const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
+function getTrainingLevelFromTable(csvContent, targetColumnName) {
+    const text = csvContent.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
 
-    // 錯誤處理 1: CSV 檔案中沒有標題或資料行
-    if (lines.length < 2) {
-        console.error('CSV 檔案中沒有標題或資料行。'); // 您回報的錯誤訊息
-        return null;
-    }
+    if (lines.length < 2) return null;
 
-    // 2. 處理標題行 (Header)
     const header = lines[0].split(',').map(h => h.trim());
-
-    // 找出 'last_squats_train_level' 標籤所在的欄位索引
-    const targetColumnName = 'last_squats_train_level';
+    // 尋找動態傳入的目標欄位名稱
     const targetIndex = header.findIndex(h => h.toLowerCase() === targetColumnName);
 
-    // 錯誤處理 2: 找不到目標欄位
-    if (targetIndex === -1) {
-        console.error(`在 CSV 標題中找不到 '${targetColumnName}' 欄位。`); // 您回報的錯誤訊息
-        return null;
+    if (targetIndex === -1) return null;
+
+    const lastDataLine = lines[lines.length - 1];
+    const dataValues = lastDataLine.split(',').map(v => v.trim());
+
+    if (dataValues.length <= targetIndex) return null;
+
+    const level = dataValues[targetIndex];
+    return level ? level.toLowerCase() : null;
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // 取得所有帶有 'training-link' class 的連結
+    const trainingLinks = document.querySelectorAll('.training-link');
+    const iframe = document.getElementById('content');
+
+    if (trainingLinks.length === 0 || !iframe) {
+        console.error('找不到訓練連結或 content iFrame 元素。');
+        return;
     }
 
-    // 讀取最後一筆資料的該欄位值
-    const lastDataLine = lines[lines.length - 1];
-    const values = lastDataLine.split(',');
+    // 儲存初始化時讀取的深蹲等級 (供深蹲訓練檔案中的 isTrainingPaused 判斷使用)
+    let initialSquatLevel = DEFAULT_LEVEL_KEY; 
 
-    // 如果欄位內沒有值，也返回 null
-    const lastLevel = values[targetIndex] ? values[targetIndex].trim() : null;
 
-    return lastLevel;
-}
+    // --- 訓練等級動態載入的核心邏輯 ---
+    trainingLinks.forEach(link => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+
+            const type = link.dataset.trainType; // 取得訓練類型: 'squats', 'advances', 'sitting'
+            const config = TRAINING_MAP[type];
+            
+            if (!config) {
+                 console.error(`未知的訓練類型: ${type}`);
+                 return;
+            }
+
+            // 1. 執行非同步讀取 CSV
+            fetch('../person.csv', { cache: 'no-store' })
+                .then(res => {
+                    if (!res.ok) throw new Error(`讀取 CSV 失敗 (${res.status})`);
+                    return res.text();
+                })
+                .then(csvText => {
+                    // 2. 使用該訓練類型的 CSV 欄位名稱來獲取等級
+                    let levelKey = getTrainingLevelFromTable(csvText, config.column) || DEFAULT_LEVEL_KEY;
+
+                    // 確保 levelKey 是有效的等級
+                    if (!VALID_LEVELS.includes(levelKey)) {
+                        console.warn(`CSV等級 [${levelKey}] 無效，使用預設值 ${DEFAULT_LEVEL_KEY}。`);
+                        levelKey = DEFAULT_LEVEL_KEY;
+                    }
+
+                    // 3. 設定全域變數和載入 iFrame
+                    window.currentTrainLevel = levelKey; // 設定當前訓練等級
+
+                    let targetUrl = `/${config.folder}/${levelKey}.html`; // 組合成動態路徑
+                    iframe.src = targetUrl;
+                    
+                    console.log(`[${type}] 等級設定為: ${levelKey}，載入連結: ${targetUrl}`);
+
+
+                    // 4. 更新高亮狀態
+                    document.querySelectorAll('.training-link').forEach(el => el.classList.remove('is-primary'));
+                    link.classList.add('is-primary');
+                })
+                .catch(error => {
+                    console.error(`[${type}] 載入等級失敗，使用預設等級 (${DEFAULT_LEVEL_KEY})。`, error.message);
+                    
+                    // 錯誤處理：直接載入該訓練類型 + 預設等級
+                    window.currentTrainLevel = DEFAULT_LEVEL_KEY;
+                    let defaultUrl = `/${config.folder}/${DEFAULT_LEVEL_KEY}.html`;
+                    iframe.src = defaultUrl;
+
+                    document.querySelectorAll('.training-link').forEach(el => el.classList.remove('is-primary'));
+                    link.classList.add('is-primary');
+                });
+        });
+    });
+
+    // --- 初始深蹲等級設定 (用於訓練檔案中) ---
+    // 這裡保留原本的 DOMContentLoaded 邏輯來讀取初始的 window.currentTrainLevel，
+    // 以確保頁面載入時，訓練邏輯可以知道預設的深蹲等級 (即使沒有點擊按鈕)。
+    fetch('../person.csv', { cache: 'no-store' })
+        .then(res => {
+            if (!res.ok) throw new Error(`讀取初始 CSV 失敗 (${res.status})`);
+            return res.text();
+        })
+        .then(csvText => {
+            let squatLevelKey = getTrainingLevelFromTable(csvText, TRAINING_MAP['squats'].column) || DEFAULT_LEVEL_KEY;
+            if (!VALID_LEVELS.includes(squatLevelKey)) squatLevelKey = DEFAULT_LEVEL_KEY;
+
+            window.currentTrainLevel = squatLevelKey;
+            console.log(`初始全域深蹲 Level 設定為: ${squatLevelKey}`);
+        })
+        .catch(error => {
+            window.currentTrainLevel = DEFAULT_LEVEL_KEY;
+            console.log(`初始 CSV 載入失敗，將全域 Level 設為預設值: ${DEFAULT_LEVEL_KEY}`);
+        });
+
+});

@@ -1,0 +1,262 @@
+body {
+      margin: 0;
+      padding: 0;
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
+      background-color: #fdfaf5;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .container {
+      width: 100%;
+      height: 100vh;
+      background: #fdfaf5;
+      margin: 0;
+      border-radius: 24px;
+      position: relative;
+    }
+
+    .box {
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.4),
+        -6px -6px 12px rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    /* Frame 1: 標題 */
+    .frame1 {
+      position: absolute;
+      top: 2vh;
+      left: 4vw;
+      right: 4vw;
+      width: auto;
+      height: 10vh;
+    }
+
+    /* Frame 2: 提示 */
+    .frame2 {
+      position: absolute;
+      top: 13vh;
+      left: 4vw;
+      right: 4vw;
+      width: auto;
+      height: 10vh;
+    }
+
+    /* Frame 3: 攝像頭與示範 */
+    .frame3 {
+      position: absolute;
+      top: 24vh;
+      left: 4vw;
+      right: 4vw;
+      height: auto;
+      width: auto;
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      background: #faf9f6;
+      padding: 10px;
+      min-height: auto;
+    }
+
+    .frame3-content {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      width: 90vh;
+      height: auto;
+    }
+
+    .video-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 確保 canvas 能夠響應式 */
+    #canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      background-color: #333;
+      transform: scaleX(-1);
+      /* 翻轉 canvas 以模擬鏡像效果 */
+    }
+
+    .text-box {
+      font-size: 20px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      border-radius: 12px;
+      object-fit: cover;
+      background-color: #333;
+    }
+
+    /* 底部控制區 */
+    .control-area {
+      position: absolute;
+      top: auto;
+      left: 4vw;
+      right: 4vw;
+      height: auto;
+      padding: 10px 0;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    #startButton,
+    #trainButton {
+      padding: 10px 15px;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      background-color: #2ecc71;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 1 auto;
+    }
+
+    #status-message {
+      flex: 0 1 auto;
+      text-align: center;
+      white-space: nowrap;
+      font-size: 14px;
+      color: #e74c3c;
+    }
+
+    #startButton:hover,
+    #trainButton:hover {
+      background-color: #27ae60;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (min-width: 768px) {
+      .control-area {
+        justify-content: center;
+        gap: 20px;
+      }
+
+      #startButton,
+      #trainButton {
+        max-width: 200px;
+      }
+    }
+
+    /* 姿勢回饋訊息區 */
+    #feedback-message-area {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      height: auto;
+      z-index: 100;
+      overflow: visible;
+      display: flex;
+      align-items: flex-end;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 訊息卡片樣式 */
+    .message {
+      width: 100%;
+      background-color: rgba(255, 255, 255, 0.95);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      border: 2px solid #3498db;
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background-color: #3498db;
+      color: white;
+      border-radius: 6px 6px 0 0;
+      font-weight: bold;
+    }
+
+    .message-body {
+      padding: 15px 12px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* 專門給予 TM 分類結果的訊息框 */
+    #tm-classification-message {
+      display: none;
+      border-color: #f39c12;
+    }
+
+    #tm-classification-message .message-header {
+      background-color: #f39c12;
+    }
+
+    /* 預設的教練訊息卡片 */
+    #coach-message {
+      display: none;
+    }
+
+    .delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: white;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+
+    .delete::before {
+      content: "×";
+    }
+
+    .stats-display {
+      flex: 0 1 auto;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      min-width: 150px;
+    }
+
+    #status-message {
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .counts-display {
+      font-size: 14px;
+      color: #555;
+    }
+
+    #correct-count {
+      color: #2ecc71;
+      font-weight: bold;
+    }
+
+    #error-count {
+      color: #e74c3c;
+      font-weight: bold;
+    }
