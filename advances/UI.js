@@ -2,20 +2,19 @@
 // 1. Teachable Machine 核心邏輯
 // ------------------------------------------------------------------
 
-// 🌟 核心修改：定義模型 URL 映射表，實現動態載入
 // 根據 CSV 讀取到的 currentTrainLevel，選擇對應的模型 URL
 const MODEL_URLS = {
   // 範例：假設所有等級都使用不同的模型
-  'upperpro': "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/",
-  'upper': "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/",
-  'middle': "https://teachablemachine.withgoogle.com/models/mUsYIH6Vi/", // Middle/Upper 使用的模型
-  'lower': "https://teachablemachine.withgoogle.com/models/akY-bmRdS/", // Lower 使用的模型 (已修正空格)
+  'upperpro': "https://teachablemachine.withgoogle.com/models/OYtsekT7h/",
+  'upper': "https://teachablemachine.withgoogle.com/models/OYtsekT7h/",
+  'middle': "https://teachablemachine.withgoogle.com/models/GRzPyCiJH/", 
+  'lower': "https://teachablemachine.withgoogle.com/models/akY-bmRdS/", 
 };
 
 let model, webcam, ctx, labelContainer, maxPredictions;
 let lastRawPose = null;       // 儲存上一幀偵測到的原始姿勢
 let poseFrameCounter = 0;   // 連續相同姿勢的計數器
-const POSE_CONFIRM_FRAMES = 3;
+const POSE_CONFIRM_FRAMES = 7;
 let currentStream = null;
 window.currentTrainLevel = null; // *** 儲存當前訓練等級 ***
 
@@ -235,7 +234,7 @@ function getTrainingLevelFromTable(csvContent) {
   if (lines.length < 2) return null;
 
   const header = lines[0].split(',').map(h => h.trim());
-  const targetIndex = header.findIndex(h => h.toLowerCase() === 'last_squats_train_level');
+  const targetIndex = header.findIndex(h => h.toLowerCase() === 'last_advances_train_level');
 
   if (targetIndex === -1) return null;
 

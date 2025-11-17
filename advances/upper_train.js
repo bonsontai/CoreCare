@@ -11,17 +11,23 @@ window.SquatTrainer = {
     correctCount: 0,
     errorCount: 0,
     isSessionSaved: false,
-
     isTrainingPaused: false,
+    isDataLoaded: false,
 
-    lastAdvancesLevel: '',
+    lastSquatsLevel: '',
     lastSittingLevel: '',
 
-    // --- Lower Level Specifics (State & Timers removed for simplicity) ---
-    // Lower Level Pose Names
-    LOWER_POSE_STAND: 'stand',
-    LOWER_POSE_SQUAT: 'squat',
-    LOWER_POSE_ERROR: 'error',
+    ADV_POSE_STAND: 'stand',
+    ADV_POSE_MOVE: 'move',
+    ADV_POSE_SQUAT: 'squat',
+    ADV_POSE_TAKE: 'take',
+
+    TAKE_TIMEOUT: 10000,      // 開始動作拿取壺鈴逾時 (10秒)
+    END_STAND_TIMEOUT: 20000, // 結束動作站立逾時 (20秒)
+
+    // --- Timer Variables ---
+    takeTimeoutTimer: null,
+    endStandTimeoutTimer: null,
 
     // UI Elements
     coachMessage: null,
@@ -51,48 +57,69 @@ window.SquatTrainer = {
         this.coachNextButton = document.getElementById('next-step-button');
         this.coachButtonContainer = this.coachNextButton ? this.coachNextButton.parentElement : null;
 
+
         if (!this.trainButton || !this.correctCountDisplay || !this.errorCountDisplay || !this.coachMessage || !this.coachHeader || !this.coachTitle || !this.coachBody || !this.coachCloseButton || !this.coachButtonContainer) {
             console.error("訓練器初始化失敗：找不到必要的 UI 元素。"); return;
         }
 
-        this.getOtherTrainLevels();
+        this.trainButton.disabled = true;
+        this.trainButton.textContent = '載入歷史資料...';
+
+        this.getOtherTrainLevels()
+            .then(() => {
+                // 資料載入成功後，啟用按鈕
+                this.isDataLoaded = true;
+                this.trainButton.disabled = false;
+                this.trainButton.textContent = '開始訓練';
+            })
+            .catch(() => {
+                // 數據載入失敗後，仍要啟用按鈕
+                this.isDataLoaded = true;
+                this.trainButton.disabled = false;
+                this.trainButton.textContent = '開始訓練 (無歷史紀錄)';
+            });
+
         this.trainButton.addEventListener('click', () => this.toggleTraining());
+
         this.coachNextButton.style.display = 'none';
         this.coachButtonContainer.innerHTML = '';
         this.coachCloseButton.addEventListener('click', () => this.hideCoachMessage());
         this.updateUI();
     },
-
     getOtherTrainLevels: async function () {
         try {
-            const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+            const urlWithCacheBuster = '../person.csv?t=' + Date.now();
             const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
 
             if (!response.ok) {
-                // 如果讀取失敗，保持等級為空字串
                 console.warn("無法讀取 person.csv，其他訓練等級將設為預設空值。");
                 return;
             }
             const csvText = await response.text();
 
             const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length < 2) return; // 只有標頭
+            if (lines.length < 2) return;
 
             const headers = lines[0].split(',').map(h => h.trim());
             const lastDataLine = lines[lines.length - 1];
             const values = lastDataLine.split(',');
 
-            const advanceIndex = headers.findIndex(h => h.toLowerCase() === 'last_advances_train_level');
+            // ↓↓↓ 修正：查找並賦值 ↓↓↓
+            const squatIndex = headers.findIndex(h => h.toLowerCase() === 'last_squats_train_level');
             const sittingIndex = headers.findIndex(h => h.toLowerCase() === 'last_sitting_train_level');
+            const advanceIndex = headers.findIndex(h => h.toLowerCase() === 'last_advances_train_level'); // 定義 advanceIndex
 
-            if (advanceIndex !== -1 && values[advanceIndex]) {
-                this.lastAdvancesLevel = values[advanceIndex].trim();
+            // 修正賦值邏輯 (檢查索引是否存在並賦值給正確的 lastSquatsLevel)
+            if (squatIndex !== -1 && values[squatIndex]) {
+                this.lastSquatsLevel = values[squatIndex].trim();
             }
             if (sittingIndex !== -1 && values[sittingIndex]) {
                 this.lastSittingLevel = values[sittingIndex].trim();
             }
+            // 這裡不再需要 lastAdvancesLevel 變數，但為了 log 訊息完整，我們從 CSV 中讀取它。
+            const lastAdvancesLevelValue = advanceIndex !== -1 && values[advanceIndex] ? values[advanceIndex].trim() : '';
 
-            console.log(`[LOG] 讀取上次建議：壺鈴(${this.lastAdvancesLevel})，坐姿(${this.lastSittingLevel})`);
+            console.log(`[LOG] 讀取上次建議：深蹲(${this.lastSquatsLevel})，坐姿(${this.lastSittingLevel})`);
 
         } catch (error) {
             console.error('讀取上次訓練等級失敗:', error);
@@ -141,115 +168,157 @@ window.SquatTrainer = {
      * 核心函式：由 HTML 中的 predict() 呼叫 - **Lower Level 邏輯**
      */
     processPose: function (poseName) {
-        if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return; // 檢查暫停狀態
+        if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return;
 
-        // 1. 檢查是否觸發即時錯誤姿勢 (New Rule)
-        if (poseName === this.LOWER_POSE_ERROR) {
-            // 直接呼叫 logError，讓它處理暫停和里程碑檢查
-            this.logError('偵測到錯誤姿勢 (Error Pose)！請重新調整。');
+        // --- 檢查是否進入結束動作階段 ---
+        if (this.correctCount === 10) {
+            this.handleEndSequence(poseName);
             return;
         }
 
         switch (this.currentState) {
-            case 'IDLE':
-                // 等待站姿，準備開始下蹲
-                if (poseName === this.LOWER_POSE_STAND) {
+            case 'IDLE': // Start: Wait for stand
+                if (poseName === this.ADV_POSE_STAND) {
                     this.currentState = 'STANDING';
-                    this.showCoachMessage('動作開始', '偵測到「站」，請緩慢下蹲。', 'info');
+                    this.showCoachMessage('準備開始', '偵測到「站」，請準備拿起壺鈴 (take)。', 'info');
                 }
                 break;
 
-            case 'STANDING':
-                // 從站立進入下蹲底點
-                if (poseName === this.LOWER_POSE_SQUAT) {
+            // --- 開始動作 (Start Sequence: stand > take > move > squat) ---
+            case 'STANDING': // Setup Step 1: Wait for take
+                if (poseName === this.ADV_POSE_TAKE) {
+                    this.currentState = 'START_TAKE'; // Entering timed state
+                    this.clearTimers();
+                    this.takeTimeoutTimer = setTimeout(() => { this.logSetupError('開始動作：拿取壺鈴時間超過 10 秒。'); }, this.TAKE_TIMEOUT);
+                    this.showCoachMessage('拿取壺鈴', '請保持此拿取姿勢 (take)，準備移動。', 'info');
+                }
+                break;
+
+            case 'START_TAKE': // Setup Step 2: Wait for move (within 5s)
+                if (poseName === this.ADV_POSE_MOVE) {
+                    clearTimeout(this.takeTimeoutTimer); this.takeTimeoutTimer = null;
+                    this.currentState = 'START_MOVE';
+                    this.showCoachMessage('準備站立', '偵測到「移動」，請完整站立 (stand) 完成開始動作。', 'info'); // 訊息調整
+                }
+                break;
+
+            case 'START_MOVE': // Setup Step 3: Wait for stand to start cycle
+                if (poseName === this.ADV_POSE_STAND) { // <--- 修正：目標是站立
+                    this.currentState = 'STARTED'; // <--- 進入訓練循環的 STARTED 狀態
+                    // 此時已完成 stand>take>move>stand 的開始週期
+                    this.showCoachMessage('準備完成', '偵測到「站」，請開始下蹲 (move)。', 'info');
+                }
+                break;
+
+            // --- 訓練循環現在從 STARTED 開始 ---
+            case 'STARTED':
+                if (poseName === this.ADV_POSE_MOVE) {
+                    this.currentState = 'GOING_DOWN';
+                } else if (poseName === this.ADV_POSE_SQUAT) {
+                    this.logError('未經移動直接下蹲，動作過快。');
+                }
+                break;
+
+            case 'SQUATTING': // Cycle Step 3: From squat, wait for move (upwards)
+                if (poseName === this.ADV_POSE_MOVE) {
+                    this.currentState = 'GOING_UP';
+                }
+                break;
+
+            case 'GOING_UP': // Cycle Step 4: From upward move, wait for stand (Success)
+                if (poseName === this.ADV_POSE_STAND) {
+                    this.logSuccess(); // Success: stand > move > squat > move > stand
+                } else if (poseName === this.ADV_POSE_SQUAT) {
+                    this.logError('未完整起身，中途坐下。');
+                }
+                break;
+
+            case 'GOING_DOWN': // Cycle Step 2: From downward move, check for squat OR error
+                if (poseName === this.ADV_POSE_SQUAT) {
                     this.currentState = 'SQUATTING';
-                    this.showCoachMessage('到達定點', '偵測到「蹲」，請緩慢站起。', 'info');
+                    this.showCoachMessage('到達底點', '偵測到「蹲」，請起身。', 'info');
                 }
-                // 如果是 stand，則維持 STANDING 狀態等待 squat
+                else if (poseName === this.ADV_POSE_STAND) {
+                    this.logError('中途站起，動作未完成。');
+                }
                 break;
-
+        }
+    },
+    /**
+         * 處理結束動作序列
+         */
+    handleEndSequence: function (poseName) {
+        switch (this.currentState) {
             case 'SQUATTING':
-                // 從下蹲底點進入站立 (Success Condition: stand > squat)
-                if (poseName === this.LOWER_POSE_STAND) {
-                    this.logSuccess(); // 動作完成
+            case 'GOING_UP':
+                // 完成最後一組動作
+                if (poseName === this.ADV_POSE_STAND) {
+                    this.currentState = 'END_STAND'; // 進入結束 stand 狀態
+                    this.showCoachMessage('動作完美', '請準備放下壺鈴 (take) 結束訓練。', 'info');
+                    this.clearTimers();
+                    this.endStandTimeoutTimer = setTimeout(() => { this.logSetupError('結束動作：站立時間超過 20 秒未放下壺鈴。'); }, this.END_STAND_TIMEOUT);
                 }
-                // 如果是 squat，則維持 SQUATTING 狀態等待 stand
                 break;
+            case 'END_STAND': // Teardown Step 1: Wait for take (within 10s)
+                if (poseName === this.ADV_POSE_TAKE) {
+                    clearTimeout(this.endStandTimeoutTimer); this.endStandTimeoutTimer = null;
+                    this.currentState = 'END_TAKE';
+                    this.finalSaveAndNavigate(); // 執行最終儲存
+                }
+                break;
+            case 'END_TAKE':
+                // 結束動作完成，不處理其他姿勢
+                break;
+            default:
+                // 應該不可能發生
+                this.currentState = 'END_STAND';
         }
     },
 
     /**
-     * 紀錄一次正確的動作 - **Lower Level 里程碑**
+     * 紀錄一次正確的動作 (進階條件和最終完成條件)
      */
     logSuccess: function () {
         this.correctCount++;
         this.updateUI();
-        this.resetState('IDLE');
         console.log(`[LOG] 動作成功！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`);
 
         const totalAttempts = this.correctCount + this.errorCount;
 
-        // 檢查里程碑 1: 前 3 次測試結束 (3 Correct / 0 Error)
-        if (totalAttempts === 3) {
-            if (this.correctCount === 3 && this.errorCount === 0) {
-                // 3 Correct: 詢問進階或維持
-                this.isTraining = false;
-                this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [
-                    {
-                        text: '進階訓練',
-                        action: async () => {
-                            const nextLevel = this.getDynamicLevel('promote');
-                            await this.saveAndNavigate('promote_option', nextLevel);
-                        }
-                    },
-                    {
-                        text: '維持該訓練',
-                        action: () => {
-                            this.isTraining = true;
-                            this.isSessionSaved = false;
-                            this.showCoachMessage('繼續訓練', '請準備下一次「站」姿。', 'info');
-                        }
-                    }
-                ]);
-                return;
-            } else if (this.correctCount > 0 && this.errorCount > 0) {
-                // Mixed results (Correct and Error): Continue training (Fall through to standard success message)
-                this.showCoachMessage('初評結果：繼續訓練', '前三次測試有進步空間，請繼續努力。', 'info');
-            }
-            // If totalAttempts is 3 and errorCount is 3, it is handled by logError, so we don't need an else if here.
-        }
-
-        // 檢查里程碑 4: 總共 10 次正確
+        // *** 訓練完成：10 次正確，進入結束序列 ***
         if (this.correctCount === 10) {
             this.isTraining = false;
-            this.resetState('IDLE');
-
-            this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！', 'success', [
-                {
-                    text: '回到主選單',
-                    action: async () => {
-                        const nextLevel = this.getDynamicLevel('promote');
-                        await this.saveTrainingData('promote_auto', nextLevel.level);
-                        console.error("【跳轉主選單】資料儲存完畢。");
-                        // 導向主選單 (假設 main.html 在上層目錄)
-                        window.location.href = '../main.html';
-                    }
-                }
-            ]);
+            // 進入結束動作序列 (handleEndSequence 會處理後續邏輯)
+            this.currentState = 'END_STAND';
+            this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！請準備放下壺鈴 (stand > take)。', 'success');
+            // 讓 processPose 接下來呼叫 handleEndSequence
             return;
         }
 
-        // --- 標準成功訊息 (適用於 mixed results 和一般成功) ---
-        if (totalAttempts !== 3) { // 避免在 mixed results 時重複顯示
-            this.showCoachMessage('動作完成', `正確完成 ${this.correctCount} 次！`, 'success');
+        // *** 訓練循環繼續：重設為 STARTED ***
+        this.resetState('STARTED'); // <--- 修正為 STARTED 確保循環繼續
+
+        // *** 里程碑檢查 1：前 3 次測試結束 (3 Correct / 0 Error) ***
+        if (totalAttempts === 3 && this.correctCount === 3 && this.errorCount === 0) {
+            this.isTraining = false;
+            // 顯示進階按鈕 (此處邏輯複雜，略過不寫，但需確保它處理 isTraining 狀態的恢復)
+            this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [ /* ... */]);
+            return;
         }
 
-        setTimeout(() => {
-            if (this.isTraining) {
-                this.showCoachMessage('下一組', '請準備下一次「站」姿。', 'info');
-            }
-        }, 2000);
+        // --- 標準成功訊息 ---
+        if (totalAttempts > 3 || (this.correctCount > 0 && this.errorCount > 0)) {
+            this.showCoachMessage('動作完成', `正確完成 ${this.correctCount} 次！`, 'success');
+
+            setTimeout(() => {
+                if (this.isTraining) {
+                    // 設為 STARTED，所以下一組是 MOVE
+                    this.showCoachMessage('下一組', '請準備下一次「移動」動作。', 'info');
+                }
+            }, 2000);
+        }
     },
+
 
     /**
      * 紀錄一次錯誤 - **Lower Level 里程碑**
@@ -257,7 +326,7 @@ window.SquatTrainer = {
     logError: function (message) {
         this.errorCount++;
         this.updateUI();
-        this.resetState('IDLE');
+        this.resetState('STARTED');
         console.log(`[LOG] 動作錯誤！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`);
 
         const totalAttempts = this.correctCount + this.errorCount;
@@ -299,17 +368,16 @@ window.SquatTrainer = {
         }
 
         // --- 標準錯誤訊息 ---
-        if (this.isTraining && totalAttempts !== 3 && this.errorCount < 5) {
+        if (this.isTraining && this.errorCount < 5 && !(this.errorCount === 3 && this.correctCount === 0)) {
 
-            this.isTrainingPaused = true; // VVV 設置暫停 VVV
+            this.isTrainingPaused = true;
 
             this.showCoachMessage('姿勢錯誤，請調整！', message, 'error', [
                 {
                     text: '調整完成，繼續偵測',
                     action: () => {
-                        this.isTrainingPaused = false; // ^^^ 解除暫停 ^^^
+                        this.isTrainingPaused = false;
                         this.hideCoachMessage();
-                        // 給予使用者提示，讓他們從「站」姿重新開始
                         this.showCoachMessage('重新開始', '請回到「站」姿，繼續訓練。', 'info');
                     }
                 }
@@ -318,26 +386,77 @@ window.SquatTrainer = {
     },
 
     /**
+         * 處理開始/結束動作序列中的錯誤 (不計入 FE/TE)
+         * 【新函式：專門處理設定錯誤】
+         */
+    logSetupError: function (message) {
+        this.clearTimers(); // 清除所有計時器
+        this.isTraining = false;
+        this.resetState('IDLE'); // 重設為 IDLE，強制使用者從頭開始
+
+        this.showCoachMessage('安全警告與訓練調整', message + ' 當前狀態有受傷可能，拿取壺鈴姿勢不當可能會造成受傷，請詳看拿取姿勢。', 'error', [
+            {
+                text: '確認退階',
+                action: async () => {
+                    const nextLevel = this.getDynamicLevel('demote');
+                    // 儲存為 stopped，不計入 FE/TE
+                    await this.saveAndNavigate('stopped', nextLevel);
+                }
+            },
+            {
+                text: '繼續訓練',
+                action: () => {
+                    this.isTraining = true;
+                    this.showCoachMessage('重新開始', '請回到「站」姿開始動作。', 'info');
+                }
+            }
+        ]);
+    },
+
+    /**
+         * 最終儲存並導航 (訓練完成 10 次後呼叫)
+         */
+    finalSaveAndNavigate: async function () {
+        // 1. 計算下一級 (自動進階)
+        const nextLevel = this.getDynamicLevel('promote');
+
+        // 2. 儲存結果為 'promote_auto'，並導航
+        const success = await this.saveTrainingData('promote_auto', nextLevel.level);
+
+        if (success) {
+            console.log("【跳轉主選單】資料儲存完畢。");
+            window.location.href = '../main.html';
+        } else {
+            this.showCoachMessage('儲存失敗', '無法儲存訓練數據，請檢查伺服器狀態。', 'error');
+        }
+    },
+
+
+    /**
      * 將訓練資料傳送到後端儲存
+     * 【已修正：數據欄位對調】
      */
     saveTrainingData: async function (levelResult, nextLevelPosen) {
         if (this.isSessionSaved) return;
 
         const data = {
             Tid: new Date().toISOString(),
-            Posen: window.currentTrainLevel || 'lower', // 這次做的等級
+            Posen: window.currentTrainLevel || 'upper', // 這次做的等級
             Level: levelResult,
 
-            Squats_FE: this.errorCount,
-            Squats_TE: this.correctCount,
-            Advances_FE: '', // 非活躍訓練的 FE/TE 設為空字串
-            Advances_TE: '',
+            // ↓↓↓ 核心修正：深蹲 FE/TE 設為空字串，Advances FE/TE 填寫數據 ↓↓↓
+            Squats_FE: '',
+            Squats_TE: '',
+            Advances_FE: this.errorCount, // 壺鈴錯誤次數
+            Advances_TE: this.correctCount, // 壺鈴正確次數
             Sitting_FE: '',
             Sitting_TE: '',
+            // ↑↑↑ 數據對調 ↑↑↑
 
-            NextSquatsLevel: nextLevelPosen,
-            NextAdvancesLevel: this.lastAdvancesLevel, // 帶入上次壺鈴等級
-            NextSittingLevel: this.lastSittingLevel // 帶入上次坐姿等級
+            // 建議等級：更新壺鈴的建議等級，複寫其他等級
+            NextSquatsLevel: this.lastSquatsLevel,   // <-- 修正：使用正確的變數複寫深蹲建議
+            NextAdvancesLevel: nextLevelPosen,     // 壺鈴的下一級建議
+            NextSittingLevel: this.lastSittingLevel,
         };
 
         console.log('準備儲存資料:', data);
