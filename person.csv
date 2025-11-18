@@ -15,3 +15,13 @@ Tid,Posen,Level,Squats_FE,Squats_TE,Advances_FE,Advances_TE,Sitting_FE,Sitting_T
 2025-11-18T02:26:45.778Z,advances,stopped,,,2,0,,,upper,upper,middle
 2025-11-18T02:52:01.290Z,advances,stopped,,,2,0,,,upper,upper,middle
 2025-11-18T02:53:07.994Z,advances,promote_auto,,,1,2,,,upper,upper,middle
+2025-11-18T04:10:10.106Z,squats,stopped,4,4,,,,,upper,upper,middle
+2025-11-18T04:12:39.741Z,squats,promote_auto,2,5,,,,,middle,upper,middle
+2025-11-18T04:22:58.901Z,advances,stopped,,,3,1,,,middle,upper,middle
+2025-11-18T04:44:12.333Z,advances,promote_auto,,,0,2,,,middle,upper,middle
+2025-11-18T05:07:11.675Z,advances,stopped,,,0,2,,,middle,upper,middle
+2025-11-18T05:11:25.214Z,advances,stopped,,,0,2,,,middle,upper,middle
+2025-11-18T05:15:33.848Z,squats,stopped,1,0,,,,,middle,upper,middle
+2025-11-18T05:16:27.422Z,squats,demote,3,0,,,,,lower,upper,middle
+2025-11-18T05:18:22.193Z,squats,promote_option,0,3,,,,,middle,upper,middle
+2025-11-18T05:21:47.788Z,squats,promote_auto,1,5,,,,,upper,upper,middle

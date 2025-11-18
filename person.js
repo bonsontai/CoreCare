@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 綁定 change 事件，當使用者選擇不同項目時執行篩選
         filterSelect.addEventListener('change', (event) => {
             const selectedType = event.target.value;
-            filterAndRender(selectedType);
+            filterAndRender(selectedType);s
         });
     }
 
