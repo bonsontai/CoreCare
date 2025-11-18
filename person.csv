@@ -9,5 +9,9 @@ Tid,Posen,Level,Squats_FE,Squats_TE,Advances_FE,Advances_TE,Sitting_FE,Sitting_T
 2025-11-16T14:06:46.489Z,middle,stopped,2,2,,,,,middle,middle,middle
 2025-11-16T14:08:37.276Z,middle,promote_auto,3,10,,,,,upper,upper,middle
 2025-11-17T15:06:38.520Z,upper,stopped,,,1,0,,,upper,upper,middle
-
 2025-11-17T16:07:28.173Z,upper,stopped,,,0,1,,,upper,upper,middle
+2025-11-18T01:59:51.516Z,upper,stopped,,,0,2,,,upper,upper,middle
+2025-11-18T02:12:07.749Z,upper,promote_auto,,,3,2,,,upper,upper,middle
+2025-11-18T02:26:45.778Z,upper,stopped,,,2,0,,,upper,upper,middle
+2025-11-18T02:52:01.290Z,upper,stopped,,,2,0,,,upper,upper,middle
+2025-11-18T02:53:07.994Z,upper,promote_auto,,,1,2,,,upper,upperPro,middle

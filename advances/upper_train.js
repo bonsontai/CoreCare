@@ -1,7 +1,7 @@
 /**
- * lower_train.js
- * 深蹲訓練邏輯處理 (Lower Level)
- * 引用模型數據：stand, squat, error
+ * upper_train.js
+ * 壺鈴訓練邏輯處理 (Upper Level)
+ * 引用模型數據：stand, squat, take, move
  */
 
 window.SquatTrainer = {
@@ -24,6 +24,9 @@ window.SquatTrainer = {
 
     TAKE_TIMEOUT: 10000,      // 開始動作拿取壺鈴逾時 (10秒)
     END_STAND_TIMEOUT: 20000, // 結束動作站立逾時 (20秒)
+
+    standErrorFrames: 0, // 新增：用於 GOING_DOWN 狀態下計數 stand 姿勢的連續幀數
+    STAND_TOLERANCE: 5,  // 新增：容忍 3 幀的 stand 姿勢（大約 100-200 毫秒，視偵測速度而定）
 
     // --- Timer Variables ---
     takeTimeoutTimer: null,
@@ -168,10 +171,12 @@ window.SquatTrainer = {
      * 核心函式：由 HTML 中的 predict() 呼叫 - **Lower Level 邏輯**
      */
     processPose: function (poseName) {
+        console.log(`[POSE] 偵測到姿勢: ${poseName}`);
         if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return;
 
         // --- 檢查是否進入結束動作階段 ---
-        if (this.correctCount === 10) {
+        if (this.correctCount === 2) {
+            console.log('[FLOW] 正確計數達到 10。進入結束序列.');
             this.handleEndSequence(poseName);
             return;
         }
@@ -180,7 +185,10 @@ window.SquatTrainer = {
             case 'IDLE': // Start: Wait for stand
                 if (poseName === this.ADV_POSE_STAND) {
                     this.currentState = 'STANDING';
+                    console.log('[START] 狀態變更: IDLE -> STANDING');
                     this.showCoachMessage('準備開始', '偵測到「站」，請準備拿起壺鈴 (take)。', 'info');
+                } else {
+                    console.log(`[IDLE_CHECK] Waiting for 'stand'. Received: ${poseName}`);
                 }
                 break;
 
@@ -188,6 +196,7 @@ window.SquatTrainer = {
             case 'STANDING': // Setup Step 1: Wait for take
                 if (poseName === this.ADV_POSE_TAKE) {
                     this.currentState = 'START_TAKE'; // Entering timed state
+                    console.log('[START] 狀態變更: STANDING -> START_TAKE (Timer ON)');
                     this.clearTimers();
                     this.takeTimeoutTimer = setTimeout(() => { this.logSetupError('開始動作：拿取壺鈴時間超過 10 秒。'); }, this.TAKE_TIMEOUT);
                     this.showCoachMessage('拿取壺鈴', '請保持此拿取姿勢 (take)，準備移動。', 'info');
@@ -198,14 +207,20 @@ window.SquatTrainer = {
                 if (poseName === this.ADV_POSE_MOVE) {
                     clearTimeout(this.takeTimeoutTimer); this.takeTimeoutTimer = null;
                     this.currentState = 'START_MOVE';
+                    console.log('[START] 狀態變更: START_TAKE -> START_MOVE (Timer OFF)');
                     this.showCoachMessage('準備站立', '偵測到「移動」，請完整站立 (stand) 完成開始動作。', 'info'); // 訊息調整
+                } else if (poseName === this.ADV_POSE_STAND) {
+                    clearTimeout(this.takeTimeoutTimer); this.takeTimeoutTimer = null;
+                    this.currentState = 'STARTED'; // 直接進入訓練循環
+                    console.log('[START] 狀態變更: START_TAKE -> STARTED (Setup Complete - Direct Stand Jump)');
+                    this.showCoachMessage('準備完成', '偵測到「站」，請開始下蹲 (move)。', 'info');
                 }
                 break;
 
             case 'START_MOVE': // Setup Step 3: Wait for stand to start cycle
                 if (poseName === this.ADV_POSE_STAND) { // <--- 修正：目標是站立
                     this.currentState = 'STARTED'; // <--- 進入訓練循環的 STARTED 狀態
-                    // 此時已完成 stand>take>move>stand 的開始週期
+                    console.log('[START] 狀態變更: START_MOVE -> STARTED (Setup Complete)');
                     this.showCoachMessage('準備完成', '偵測到「站」，請開始下蹲 (move)。', 'info');
                 }
                 break;
@@ -214,32 +229,47 @@ window.SquatTrainer = {
             case 'STARTED':
                 if (poseName === this.ADV_POSE_MOVE) {
                     this.currentState = 'GOING_DOWN';
-                } else if (poseName === this.ADV_POSE_SQUAT) {
-                    this.logError('未經移動直接下蹲，動作過快。');
+                    console.log('[CYCLE] 狀態變更: STARTED -> GOING_DOWN (Start Descent)');
+                }
+                break;
+
+            case 'GOING_DOWN': // Cycle Step 2: From downward move, check for squat OR stand error
+                if (poseName === this.ADV_POSE_SQUAT) {
+                    this.currentState = 'SQUATTING';
+                    this.standErrorFrames = 0; // 重置計數器
+                    console.log('[CYCLE] 狀態變更: GOING_DOWN -> SQUATTING (Bottom Reached)');
+                    this.showCoachMessage('到達底點', '偵測到「蹲」，請起身。', 'info');
+                }
+                else if (poseName === this.ADV_POSE_STAND) {
+                    this.standErrorFrames++;
+                    if (this.standErrorFrames >= this.STAND_TOLERANCE) {
+                        // 連續偵測到 stand 超過容忍幀數，判定為錯誤
+                        console.log(`[ERROR] 順序錯誤: GOING_DOWN -> STAND (Skipped Squat) after ${this.standErrorFrames} frames.`);
+                        this.logError('中途站起，動作未完成。');
+                    } else {
+                        console.log(`[WARN] 警告：GOING_DOWN 偵測到 stand 姿態 (Frame: ${this.standErrorFrames})`);
+                    }
+                }
+                else {
+                    // 如果是 move 或其他非 squat/stand 的姿勢，重設計數器 (只容忍 stand 錯誤)
+                    this.standErrorFrames = 0;
                 }
                 break;
 
             case 'SQUATTING': // Cycle Step 3: From squat, wait for move (upwards)
                 if (poseName === this.ADV_POSE_MOVE) {
                     this.currentState = 'GOING_UP';
+                    console.log('[CYCLE] 狀態變更: SQUATTING -> GOING_UP (Start Ascent)');
                 }
                 break;
 
             case 'GOING_UP': // Cycle Step 4: From upward move, wait for stand (Success)
                 if (poseName === this.ADV_POSE_STAND) {
+                    console.log('[CYCLE] 完成: GOING_UP -> STAND (Calling logSuccess)');
                     this.logSuccess(); // Success: stand > move > squat > move > stand
                 } else if (poseName === this.ADV_POSE_SQUAT) {
+                    console.log('[ERROR] 順序錯誤: GOING_UP -> SQUAT (Mid-Ascent Squat)');
                     this.logError('未完整起身，中途坐下。');
-                }
-                break;
-
-            case 'GOING_DOWN': // Cycle Step 2: From downward move, check for squat OR error
-                if (poseName === this.ADV_POSE_SQUAT) {
-                    this.currentState = 'SQUATTING';
-                    this.showCoachMessage('到達底點', '偵測到「蹲」，請起身。', 'info');
-                }
-                else if (poseName === this.ADV_POSE_STAND) {
-                    this.logError('中途站起，動作未完成。');
                 }
                 break;
         }
@@ -248,35 +278,62 @@ window.SquatTrainer = {
          * 處理結束動作序列
          */
     handleEndSequence: function (poseName) {
+        // 【偵錯日誌 - 結束序列開始】
+        console.log(`[END_FLOW] Pose: ${poseName} | Current State: ${this.currentState}`);
+
         switch (this.currentState) {
             case 'SQUATTING':
             case 'GOING_UP':
-                // 完成最後一組動作
-                if (poseName === this.ADV_POSE_STAND) {
-                    this.currentState = 'END_STAND'; // 進入結束 stand 狀態
+                // 這裡只應在達到 10 次時，且 logSuccess 尚未執行時進入。通常不會發生。
+                console.log(`[END_FLOW] Error: Entered handleEndSequence before logSuccess! State: ${this.currentState}`);
+                // 讓它自然完成 logSuccess 內的 END_STAND 轉換
+                break;
+
+            case 'END_STAND': // Teardown Step 1: Wait for take (within 20s)
+                if (poseName === this.ADV_POSE_TAKE) {
+                    clearTimeout(this.endStandTimeoutTimer);
+                    this.endStandTimeoutTimer = null;
+                    this.currentState = 'END_TAKE_READY';
+                    console.log('[END_FLOW] State Change: END_STAND -> END_TAKE_READY');
+                    this.showCoachMessage(
+                        '訓練完成！',
+                        '您已成功完成壺鈴深蹲訓練與結束動作。請點擊按鈕回到主選單。',
+                        'success',
+                        [{
+                            text: '回到主選單',
+                            // 按鈕點擊後才執行最終儲存和頁面跳轉
+                            action: () => {
+                                this.finalSaveAndNavigate();
+                            }
+                        }]
+                    );
+                } else {
+                    console.log(`[END_FLOW] Waiting for TAKE... Detected: ${poseName}`);
+                }
+                break;
+            case 'END_TAKE_READY':
+                console.log('[END_FLOW] Waiting for user confirmation...');
+                break;
+
+            default:
+                // 如果是 logSuccess 剛把狀態設為 END_STAND，但還沒觸發計時器的情況，就會進入這裡。
+                // 為了安全，讓它執行 END_STAND 的初始化邏輯。
+                if (this.correctCount === 2) {
+                    console.log('[END_FLOW] Initializing END_STAND state...');
+                    this.currentState = 'END_STAND';
                     this.showCoachMessage('動作完美', '請準備放下壺鈴 (take) 結束訓練。', 'info');
                     this.clearTimers();
-                    this.endStandTimeoutTimer = setTimeout(() => { this.logSetupError('結束動作：站立時間超過 20 秒未放下壺鈴。'); }, this.END_STAND_TIMEOUT);
+                    this.endStandTimeoutTimer = setTimeout(() => {
+                        this.logSetupError('結束動作：站立時間超過 20 秒未放下壺鈴。');
+                    }, this.END_STAND_TIMEOUT);
+                } else {
+                    this.currentState = 'END_STAND';
                 }
-                break;
-            case 'END_STAND': // Teardown Step 1: Wait for take (within 10s)
-                if (poseName === this.ADV_POSE_TAKE) {
-                    clearTimeout(this.endStandTimeoutTimer); this.endStandTimeoutTimer = null;
-                    this.currentState = 'END_TAKE';
-                    this.finalSaveAndNavigate(); // 執行最終儲存
-                }
-                break;
-            case 'END_TAKE':
-                // 結束動作完成，不處理其他姿勢
-                break;
-            default:
-                // 應該不可能發生
-                this.currentState = 'END_STAND';
         }
     },
 
     /**
-     * 紀錄一次正確的動作 (進階條件和最終完成條件)
+     * 紀錄一次正確的動作
      */
     logSuccess: function () {
         this.correctCount++;
@@ -286,33 +343,23 @@ window.SquatTrainer = {
         const totalAttempts = this.correctCount + this.errorCount;
 
         // *** 訓練完成：10 次正確，進入結束序列 ***
-        if (this.correctCount === 10) {
-            this.isTraining = false;
-            // 進入結束動作序列 (handleEndSequence 會處理後續邏輯)
+        if (this.correctCount === 2) {
+            // 進入 END_STAND 狀態，讓 processPose 的 handleEndSequence 接下來捕捉 TAKE
             this.currentState = 'END_STAND';
+            console.log('[SUCCESS_LOG] Training Complete! State set to END_STAND.');
             this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！請準備放下壺鈴 (stand > take)。', 'success');
-            // 讓 processPose 接下來呼叫 handleEndSequence
             return;
         }
 
         // *** 訓練循環繼續：重設為 STARTED ***
-        this.resetState('STARTED'); // <--- 修正為 STARTED 確保循環繼續
+        this.resetState('STARTED');
+        console.log('[SUCCESS_LOG] State reset to STARTED for next repetition.');
 
-        // *** 里程碑檢查 1：前 3 次測試結束 (3 Correct / 0 Error) ***
-        if (totalAttempts === 3 && this.correctCount === 3 && this.errorCount === 0) {
-            this.isTraining = false;
-            // 顯示進階按鈕 (此處邏輯複雜，略過不寫，但需確保它處理 isTraining 狀態的恢復)
-            this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [ /* ... */]);
-            return;
-        }
-
-        // --- 標準成功訊息 ---
         if (totalAttempts > 3 || (this.correctCount > 0 && this.errorCount > 0)) {
             this.showCoachMessage('動作完成', `正確完成 ${this.correctCount} 次！`, 'success');
 
             setTimeout(() => {
                 if (this.isTraining) {
-                    // 設為 STARTED，所以下一組是 MOVE
                     this.showCoachMessage('下一組', '請準備下一次「移動」動作。', 'info');
                 }
             }, 2000);
@@ -580,7 +627,7 @@ window.SquatTrainer = {
     },
     resetState: function (newState) {
         this.currentState = newState;
-        // 在 Lower Level 中沒有 Timers，但保留 clearTimers 函式體
+        this.standErrorFrames = 0; // 重置計數器
         this.clearTimers();
     },
     clearTimers: function () {

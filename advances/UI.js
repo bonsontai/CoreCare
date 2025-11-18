@@ -14,7 +14,7 @@ const MODEL_URLS = {
 let model, webcam, ctx, labelContainer, maxPredictions;
 let lastRawPose = null;       // 儲存上一幀偵測到的原始姿勢
 let poseFrameCounter = 0;   // 連續相同姿勢的計數器
-const POSE_CONFIRM_FRAMES = 7;
+const POSE_CONFIRM_FRAMES = 5;
 let currentStream = null;
 window.currentTrainLevel = null; // *** 儲存當前訓練等級 ***
 
