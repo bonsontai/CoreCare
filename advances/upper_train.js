@@ -483,12 +483,14 @@ window.SquatTrainer = {
      * 將訓練資料傳送到後端儲存
      * 【已修正：數據欄位對調】
      */
+
+
     saveTrainingData: async function (levelResult, nextLevelPosen) {
         if (this.isSessionSaved) return;
 
         const data = {
             Tid: new Date().toISOString(),
-            Posen: window.currentTrainLevel || 'upper', // 這次做的等級
+            Posen: 'advances', // 這次做的等級
             Level: levelResult,
 
             // ↓↓↓ 核心修正：深蹲 FE/TE 設為空字串，Advances FE/TE 填寫數據 ↓↓↓

@@ -118,7 +118,7 @@
       // 1. "個人資料" 按鈕
       document.getElementById('person-button').addEventListener('click', () => {
         // 找到 index.html 中 [data-src="person.html"] 的按鈕
-        const link = parentDoc.querySelector('[data-src="person.html"]');
+        const link = parentDoc.getElementById('person-link');
         if (link) {
           link.click(); // 模擬點擊
         } else {

@@ -319,7 +319,7 @@ window.SquatTrainer = {
 
     const data = {
       Tid: new Date().toISOString(),
-      Posen: window.currentTrainLevel || 'lower', // 這次做的等級
+      Posen: 'squats', // 這次做的等級
       Level: levelResult,
 
       Squats_FE: this.errorCount,
