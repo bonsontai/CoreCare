@@ -14,6 +14,10 @@ window.SquatTrainer = {
     isTrainingPaused: false,
     isDataLoaded: false,
 
+    isTimerLocked: false, // <-- 【狀態機鎖定】
+    nextSetTimer: null,   // <-- 【成功訊息定時器】
+    errorTimer: null,     // <-- 【錯誤訊息定時器】
+
     lastSquatsLevel: '',
     lastSittingLevel: '',
 
@@ -172,8 +176,7 @@ window.SquatTrainer = {
      */
     processPose: function (poseName) {
         console.log(`[POSE] 偵測到姿勢: ${poseName}`);
-        if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return;
-
+        if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused || this.isTimerLocked) return;
         // --- 檢查是否進入結束動作階段 ---
         if (this.correctCount === 2) {
             console.log('[FLOW] 正確計數達到 10。進入結束序列.');
@@ -358,11 +361,19 @@ window.SquatTrainer = {
         if (totalAttempts > 3 || (this.correctCount > 0 && this.errorCount > 0)) {
             this.showCoachMessage('動作完成', `正確完成 ${this.correctCount} 次！`, 'success');
 
-            setTimeout(() => {
+            // 💡 關鍵：立即鎖定！
+            this.isTimerLocked = true;
+            if (this.nextSetTimer) { clearTimeout(this.nextSetTimer); }
+
+            this.nextSetTimer = setTimeout(() => {
                 if (this.isTraining) {
+                    // 延遲結束後，解除鎖定
+                    this.isTimerLocked = false;
+
                     this.showCoachMessage('下一組', '請準備下一次「移動」動作。', 'info');
                 }
-            }, 2000);
+                this.nextSetTimer = null;
+            }, 3000); // 建議使用 3000ms
         }
     },
 
@@ -417,18 +428,28 @@ window.SquatTrainer = {
         // --- 標準錯誤訊息 ---
         if (this.isTraining && this.errorCount < 5 && !(this.errorCount === 3 && this.correctCount === 0)) {
 
-            this.isTrainingPaused = true;
+            // 1. 顯示錯誤訊息 (無按鈕)
+            this.showCoachMessage('姿勢錯誤，請調整！', message, 'error');
 
-            this.showCoachMessage('姿勢錯誤，請調整！', message, 'error', [
-                {
-                    text: '調整完成，繼續偵測',
-                    action: () => {
-                        this.isTrainingPaused = false;
-                        this.hideCoachMessage();
-                        this.showCoachMessage('重新開始', '請回到「站」姿，繼續訓練。', 'info');
-                    }
+            // 2. 立即鎖定狀態機，防止姿勢偵測器重複觸發錯誤
+            this.isTimerLocked = true;
+            if (this.errorTimer) { clearTimeout(this.errorTimer); }
+            // 🚨 移除舊的 this.isTrainingPaused = true; 
+
+            // 3. 設定 5 秒延遲
+            this.errorTimer = setTimeout(() => {
+                if (this.isTraining) {
+                    // a. 解除鎖定
+                    this.isTimerLocked = false;
+
+                    // b. 隱藏錯誤訊息 (logError 開頭已 resetState('STARTED'))
+                    this.hideCoachMessage();
+
+                    // c. 提示使用者重新開始
+                    this.showCoachMessage('重新開始', '請回到「站」姿，繼續訓練。', 'info');
                 }
-            ]);
+                this.errorTimer = null;
+            }, 5000); // 5 秒延遲
         }
     },
 
@@ -633,7 +654,11 @@ window.SquatTrainer = {
         this.clearTimers();
     },
     clearTimers: function () {
-        // Lower Level 無需清除 Timers
+        if (this.takeTimeoutTimer) { clearTimeout(this.takeTimeoutTimer); this.takeTimeoutTimer = null; }
+        if (this.endStandTimeoutTimer) { clearTimeout(this.endStandTimeoutTimer); this.endStandTimeoutTimer = null; }
+
+        if (this.nextSetTimer) { clearTimeout(this.nextSetTimer); this.nextSetTimer = null; } // <-- 新增
+        if (this.errorTimer) { clearTimeout(this.errorTimer); this.errorTimer = null; }   // <-- 新增
     },
     updateUI: function () {
         if (this.correctCountDisplay) { this.correctCountDisplay.textContent = this.correctCount; }

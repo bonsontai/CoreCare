@@ -12,12 +12,14 @@ window.SquatTrainer = {
   isSessionSaved: false,
 
   isTrainingPaused: false,
+  isTimerLocked: false, // <-- 【新增鎖定變數】
   lastAdvancesLevel: '', // 儲存上次壺鈴建議等級
   lastSittingLevel: '',  // 儲存上次坐姿建議等級
   isDataLoaded: false,   // 歷史資料載入狀態
   // ( ... 計時器、常數、UI 元素綁定 ... )
   sitTimeoutTimer: null,
   sitHoldTimer: null,
+  errorTimer: null,     // <-- 錯誤訊息的定時器
   SIT_TIMEOUT_DURATION: 20000,
   SIT_HOLD_LIMIT: 3000,
   coachMessage: null,
@@ -33,7 +35,7 @@ window.SquatTrainer = {
 
   /**
    * 初始化訓練器
-   * (此函式保持不變)
+   * 
    */
   init: function () {
     this.trainButton = document.getElementById('trainButton');
@@ -156,7 +158,7 @@ window.SquatTrainer = {
    * (此函式保持不變)
    */
   processPose: function (poseName) {
-    if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused) return;
+    if (!this.isTraining || poseName === "N/A" || this.isTrainingPaused || this.isTimerLocked) return;
     switch (this.currentState) {
       case 'IDLE':
         if (poseName === '站') {
@@ -201,8 +203,6 @@ window.SquatTrainer = {
     // 檢查里程碑 1: 前 3 下全對
     if (this.correctCount === 3 && this.errorCount === 0) {
       this.isTraining = false;
-      this.resetState('IDLE');
-
       this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [
         {
           text: '進階訓練',
@@ -216,6 +216,7 @@ window.SquatTrainer = {
           action: () => {
             this.isTraining = true;
             this.isSessionSaved = false;
+            this.resetState('IDLE');
             this.showCoachMessage('繼續訓練', '請準備下一次「站」姿。', 'info');
           }
         }
@@ -243,13 +244,17 @@ window.SquatTrainer = {
     }
 
     // --- 標準成功訊息 ---
+    console.log(`[DEBUG 1] ${new Date().getTime()} - 動作完成訊息顯示`);
     this.showCoachMessage('動作完成', `正確完成 ${this.correctCount} 次！`, 'success');
-    this.resetState('IDLE');
+    this.isTimerLocked = true;
     setTimeout(() => {
+      console.log(`[DEBUG 2] ${new Date().getTime()} - 延遲結束，下一組訊息顯示`);
       if (this.isTraining) {
+        this.isTimerLocked = false;
+        this.resetState('IDLE');
         this.showCoachMessage('下一組', '請準備下一次「站」姿。', 'info');
       }
-    }, 2000);
+    }, 3000);
   },
 
   /**
@@ -294,19 +299,31 @@ window.SquatTrainer = {
     // --- 標準錯誤訊息 ---
     if (this.isTraining && this.errorCount < 5 && !(this.errorCount === 3 && this.correctCount === 0)) {
 
-      this.isTrainingPaused = true; // VVV 設置暫停 VVV
+      // 1. 顯示錯誤訊息 (不帶按鈕)
+      console.log(`[DEBUG ERROR 1] ${new Date().getTime()} - 錯誤訊息顯示`);
+      this.showCoachMessage('姿勢錯誤，請調整！', message, 'error');
 
-      this.showCoachMessage('姿勢錯誤，請調整！', message, 'error', [
-        {
-          text: '調整完成，繼續偵測',
-          action: () => {
-            this.isTrainingPaused = false; // ^^^ 解除暫停 ^^^
-            this.hideCoachMessage();
-            // 給予使用者提示，讓他們從「站」姿重新開始
-            this.showCoachMessage('重新開始', '請重新從「站」姿開始。', 'info');
-          }
+      // 2. 立即鎖定狀態機！防止姿勢偵測器重複觸發錯誤
+      this.isTimerLocked = true;
+
+      // 清除舊的錯誤定時器（防錯）
+      if (this.errorTimer) { clearTimeout(this.errorTimer); }
+
+      // 3. 設定 5 秒延遲
+      this.errorTimer = setTimeout(() => {
+        console.log(`[DEBUG ERROR 2] ${new Date().getTime()} - 延遲結束，準備重新開始`);
+        if (this.isTraining) {
+          // a. 解除鎖定，允許姿勢偵測繼續
+          this.isTimerLocked = false;
+
+          // b. 隱藏錯誤訊息
+          this.hideCoachMessage();
+
+          // c. 提示使用者從「站」姿重新開始 (logError 開頭已將狀態 reset 為 IDLE)
+          this.showCoachMessage('重新開始', '請重新從「站」姿開始。', 'info');
         }
-      ]);
+        this.errorTimer = null;
+      }, 5000); // <-- 5 秒 (可調整)
     }
   },
 
@@ -459,6 +476,7 @@ window.SquatTrainer = {
   clearTimers: function () {
     if (this.sitTimeoutTimer) { clearTimeout(this.sitTimeoutTimer); this.sitTimeoutTimer = null; }
     if (this.sitHoldTimer) { clearTimeout(this.sitHoldTimer); this.sitHoldTimer = null; }
+    if (this.errorTimer) { clearTimeout(this.errorTimer); this.errorTimer = null; } // <-- 新增清除邏輯
   },
   updateUI: function () {
     if (this.correctCountDisplay) { this.correctCountDisplay.textContent = this.correctCount; }
