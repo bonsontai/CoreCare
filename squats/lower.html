@@ -2,84 +2,158 @@
 <html lang="zh-TW">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>深蹲訓練畫面 (TM)</title>
-  <link rel="stylesheet" href="squat_styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>深蹲訓練畫面 (TM) - New Design</title>
 
-  <!-- 引入 Teachable Machine & TensorFlow JS 函式庫 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+
+  <style>
+    /* 保持 Canvas 鏡像效果 */
+    #canvas {
+      transform: scaleX(-1);
+    }
+
+    /* 自定義動畫 */
+    @keyframes fade-in-up {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+
+    .animate-fade-in-up {
+      animation: fade-in-up 0.3s ease-out forwards;
+    }
+
+    /* 隱藏預設的 coach-message，由 JS 控制顯示 */
+    #coach-message {
+      display: none;
+    }
+  </style>
 </head>
 
-<body>
-  <div class="container">
+<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- Frame 1: 訓練等級標題 -->
-    <div class="frame1 box">
-      <h3 class="title is-3" id="levelTitle">扶持式微蹲</h3>
+  <div class="bg-gray-800 px-4 py-3 flex justify-between items-center shadow-md fixed top-0 w-full z-20 h-16">
+    <div>
+      <h2 class="text-xl font-bold text-white flex items-center gap-2">
+        <span class="uppercase text-blue-400">TRAINING</span>
+        <span class="text-gray-400 text-sm">/</span>
+        <span id="levelTitle">扶持式微蹲</span>
+      </h2>
     </div>
-
-    <!-- Frame 2: 訓練提示 -->
-    <div class="frame2 box">
-      <div class="text-box" id="trainPrompt">在穩固的桌面或高度合適且穩定的椅子前面，慢慢將重心稍微往後/往下移動，膝蓋只有輕微彎曲。</div>
+    <div class="flex space-x-6 text-sm font-medium">
+      <div class="text-green-400">正確: <span class="text-xl" id="correct-count">0</span></div>
+      <div class="text-red-400">錯誤: <span class="text-xl" id="error-error">0</span></div>
+      <div class="text-red-400 hidden">錯誤(修正): <span class="text-xl" id="error-count">0</span></div>
     </div>
-
-    <!-- Frame 3: Teachable Machine 畫面與示範影片 -->
-    <div class="frame3 box">
-      <div class="frame3-content">
-        <!-- 您的實時影像 (使用 Canvas 顯示 TM 輸出) -->
-        <div class="video-container">
-          <h4 style="color: #2c3e50; font-size: 16px;">您的實時影像 (TM)</h4>
-          <!-- 這裡使用 canvas 接收攝像頭影像並繪製骨架 -->
-          <canvas id="canvas"></canvas>
-        </div>
-
-        <!-- 示範影片 -->
-        <div class="video-container">
-          <h4 style="color: #2c3e50; font-size: 16px;">動作示範影片</h4>
-          <video id="train-video" autoplay muted loop>
-            <source src="../videos/squats_lower.mp4" type="video/mp4" />
-            您的瀏覽器不支援影片播放。
-          </video>
-        </div>
-      </div>
-
-      
-
-    <!-- 控制與狀態區域 -->
-    <div class="control-area">
-      <button id="startButton">啟動姿勢偵測</button>
-
-      <div class="stats-display">
-        <div id="status-message" style="color: #e74c3c;">等待啟動...</div>
-        <div class="counts-display">
-          <span>正確: <span id="correct-count">0</span></span>
-          <span style="margin-left: 15px;">錯誤: <span id="error-count">0</span></span>
-        </div>
-      </div>
-
-      <button id="trainButton">開始訓練</button>
-    </div>
-
   </div>
-  <!-- 姿勢回饋訊息區：包含 TM 分類結果 和 教練訊息 -->
-      <div id="feedback-message-area">
-        <!-- 2. 教練訊息卡片 (原來的結構) -->
-        <article class="message" id="coach-message">
-          <div class="message-header">
-            <p id="message-title">訊息標題</p>
-            <button class="delete" aria-label="delete" id="close-coach-message"></button>
+
+  <div class="flex-1 flex flex-col md:flex-row h-screen pt-16">
+
+    <div class="flex-1 relative bg-black flex justify-center items-center overflow-hidden group">
+
+      <canvas id="canvas" class="w-full h-full object-contain"></canvas>
+
+      <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <div id="idle-hint"
+          class="text-gray-500 text-sm border border-gray-700 px-4 py-2 rounded bg-gray-900/50 backdrop-blur">
+          等待攝影機啟動...
+        </div>
+      </div>
+
+      <article id="coach-message"
+        class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-lg bg-white rounded-lg shadow-2xl overflow-hidden animate-fade-in-up text-gray-800 z-30 border-l-8 border-blue-500">
+
+        <div class="message-header flex justify-between items-center px-4 py-3 bg-blue-500 text-white font-bold">
+          <p id="message-title" class="m-0 p-0 text-lg">訊息標題</p>
+          <button class="delete hover:text-gray-200 transition" aria-label="delete" id="close-coach-message">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="message-body p-5 bg-white">
+          <span id="message-body-text" class="text-lg block mb-4">訊息內容</span>
+
+          <div class="flex justify-end gap-2">
+            <button class="button px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow transition"
+              id="next-step-button">
+              下一步
+            </button>
           </div>
-          <div class="message-body">
-            <span id="message-body-text">訊息內容</span>
-            <div style="text-align: right; margin-top: 10px;">
-              <button class="button" id="next-step-button" style="background-color: #3498db; color: white;">下一步</button>
-            </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="w-full md:w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
+
+      <div class="h-56 bg-gray-900 relative">
+        <video id="train-video" autoplay muted loop class="w-full h-full object-cover opacity-80">
+          <source src="" type="../videos/squats_lower.mp4" />
+        </video>
+        <div class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+          動作示範
+        </div>
+      </div>
+
+      <div class="p-4 bg-gray-700/30 border-b border-gray-700">
+        <h3 class="text-gray-400 text-xs uppercase font-bold tracking-wider mb-2">訓練提示</h3>
+        <div id="trainPrompt" class="text-white text-sm leading-relaxed font-medium">
+          在穩固的桌面或高度合適且穩定的椅子前面，慢慢將重心稍微往後/往下移動，膝蓋只有輕微彎曲。
+        </div>
+      </div>
+
+      <div class="p-4 space-y-3 flex-1 overflow-y-auto">
+
+        <div class="mb-4 text-center">
+          <div id="status-message"
+            class="text-yellow-400 font-mono text-sm font-bold bg-gray-900/50 py-2 rounded border border-yellow-400/30">
+            等待啟動...
           </div>
-        </article>
+        </div>
+
+        <button id="startButton"
+          class="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg transition flex justify-center items-center gap-2 group">
+          <i data-lucide="camera" class="w-5 h-5 group-hover:scale-110 transition"></i>
+          啟動姿勢偵測
+        </button>
+
+        <button id="trainButton"
+          class="w-full py-4 rounded-lg bg-green-600 hover:bg-green-500 text-white font-bold text-lg shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2">
+          <i data-lucide="play-circle" class="w-6 h-6"></i>
+          開始訓練
+        </button>
+
+        <button onclick="window.history.back()"
+          class="w-full py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm mt-4">
+          返回上一頁
+        </button>
+
       </div>
     </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // 簡單的 Canvas 狀態監聽，當 canvas 開始繪製時隱藏閒置提示
+    const canvasEl = document.getElementById('canvas');
+    const idleHint = document.getElementById('idle-hint');
+    const observer = new MutationObserver(() => {
+      if (canvasEl.width > 0) idleHint.style.display = 'none';
+    });
+    observer.observe(canvasEl, { attributes: true });
+  </script>
 
   <script src="UI.js"></script>
   <script src="lower_train.js"></script>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CoreCare - 智能健康訓練平台</title>
+    <title>CoreCare訓練平台</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -281,9 +281,9 @@
             </div>
             <ul class="nav-links" id="navLinks">
                 <li><a onclick="navigateTo('home')">首頁</a></li>
-                <li><a onclick="navigateTo('personal')">個人</a></li>
+                <li><a onclick="navigateTo('personal')">我的數據</a></li>
                 <li class="dropdown" onclick="toggleDropdown(this)">
-                    <a>訓練 <i class="fas fa-caret-down"></i></a>
+                    <a>開始訓練 <i class="fas fa-caret-down"></i></a>
                     <div class="dropdown-content">
                         <a onclick="loadTraining('squat')">深蹲訓練</a>
                         <a onclick="loadTraining('kettlebell')">壺鈴訓練</a>
@@ -298,7 +298,9 @@
         <section id="home" class="section active-section">
             <div class="hero">
                 <h1>歡迎來到 CoreCare</h1>
-                <p>您的智能姿勢矯正與健康訓練夥伴</p>
+                <p>您的個人化健身訓練夥伴</p>
+                <br>
+                <p>專為肌少症患者打造的健身平台</p>
                 <button onclick="navigateTo('personal')"
                     style="margin-top: 20px; padding: 10px 20px; cursor: pointer; border: none; background: white; color: #007bff; border-radius: 5px; font-weight: bold;">查看我的數據</button>
             </div>
@@ -312,7 +314,7 @@
                     <p>透過雷達圖分析您的投入度與掌握度。</p>
                 </div>
                 <div class="data-card">
-                    <h3><i class="fas fa-dumbbell"></i> 智能推薦</h3>
+                    <h3><i class="fas fa-dumbbell"></i> 動態調整</h3>
                     <p>根據您的表現自動調整訓練強度。</p>
                 </div>
             </div>
@@ -335,6 +337,16 @@
                     </div>
                 </div>
 
+                <div class="data-card" style="margin-top: 2rem; overflow-x: auto;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-history"></i> 歷史訓練紀錄</h3>
+                        <span style="font-size: 0.9rem; color: #666;">顯示最近 50 筆</span>
+                    </div>
+                    <div id="historyTableContainer">
+                    </div>
+                </div>
+
                 <div class="data-card">
                     <h3>能力分析雷達圖</h3>
                     <div class="chart-container">
@@ -345,9 +357,8 @@
         </section>
 
         <section id="training" class="section">
-            <iframe id="trainingFrame" name="trainingFrame" 
-                    style="width: 100%; height: 85vh; border: none; border-radius: 10px; background-color: #fff;" 
-                    src="">
+            <iframe id="trainingFrame" name="trainingFrame"
+                style="width: 100%; height: 85vh; border: none; border-radius: 10px; background-color: #fff;" src="">
             </iframe>
         </section>
     </main>
@@ -356,17 +367,16 @@
 
     <script>
         // --- 全域變數 ---
-        let globalCSVData = []; 
+        let globalCSVData = [];
         let myRadarChart = null;
 
-        // 訓練路徑對應 (對應您的資料夾結構)
+        // --- 設定與對照表 (移植自原本的 person.js) ---
         const trainingPaths = {
             squat: { column: 'last_squats_train_level', folder: 'squats' },
-            kettlebell: { column: 'last_advances_train_level', folder: 'advances' }, 
+            kettlebell: { column: 'last_advances_train_level', folder: 'advances' },
             sitting: { column: 'last_sitting_train_level', folder: 'sitting' }
         };
 
-        // 訓練頁面檔案名稱對應
         const levelFileMap = {
             'lower': 'lower.html',
             'middle': 'middle.html',
@@ -374,10 +384,30 @@
             'upperPro': 'upper.html'
         };
 
-        // 中文顯示對應
         const displayMap = {
             'squat': '深蹲', 'kettlebell': '壺鈴', 'sitting': '坐姿',
-            'lower': '初階', 'middle': '中階', 'upper': '高階', 'upperPro': '進階'
+            'lower': '初階', 'middle': '中階', 'upper': '高階', 'upperPro': '進階',
+            'squats': '深蹲', 'advances': '壺鈴' // 對應 CSV Posen 內容
+        };
+
+        // 表格欄位標頭翻譯
+        const HEADER_MAP = {
+            'Tid': '時間',
+            'Posen': '訓練項目',
+            'Level': '結果',
+            'Squats_FE': '深蹲錯誤', 'Squats_TE': '深蹲正確',
+            'Advances_FE': '壺鈴錯誤', 'Advances_TE': '壺鈴正確',
+            'Sitting_FE': '坐姿錯誤', 'Sitting_TE': '坐姿正確',
+            'last_squats_train_level': '深蹲建議',
+            'last_advances_train_level': '壺鈴建議',
+            'last_sitting_train_level': '坐姿建議'
+        };
+
+        // 定義每種訓練要顯示哪些欄位
+        const TABLE_COLUMNS = {
+            'squat': ['Tid', 'Level', 'Squats_FE', 'Squats_TE', 'last_squats_train_level'],
+            'kettlebell': ['Tid', 'Level', 'Advances_FE', 'Advances_TE', 'last_advances_train_level'],
+            'sitting': ['Tid', 'Level', 'Sitting_FE', 'Sitting_TE', 'last_sitting_train_level']
         };
 
         // --- 1. 讀取 CSV 資料庫 ---
@@ -389,7 +419,6 @@
                 complete: function (results) {
                     console.log("CSV 讀取成功", results.data.length + " 筆資料");
                     globalCSVData = results.data;
-                    // 若當前在個人頁面，立即更新數據
                     if(document.getElementById('personal').classList.contains('active-section')){
                         updatePersonalData();
                     }
@@ -400,13 +429,11 @@
             });
         }
 
-        // --- 2. 核心：訓練跳轉邏輯 (修改為 iframe 模式) ---
+        // --- 2. 核心：訓練跳轉邏輯 (iframe 模式) ---
         function loadTraining(typeKey) {
-            // A. 取得設定
             const config = trainingPaths[typeKey];
             if (!config) return alert("未知的訓練類型");
 
-            // B. 讀取最新 CSV 以確保等級準確 (雙重保險)
             Papa.parse("person.csv?t=" + Date.now(), {
                 download: true,
                 header: true,
@@ -415,71 +442,64 @@
                     const rows = results.data;
                     const lastRow = rows[rows.length - 1] || {};
                     
-                    // C. 取得建議等級 (若無則預設 middle)
                     let suggestion = lastRow[config.column];
                     if (!suggestion || !levelFileMap[suggestion]) {
-                        console.warn(`[系統] 找不到 ${typeKey} 的建議等級，預設使用 middle`);
                         suggestion = 'middle';
                     }
 
-                    // D. 組合路徑 (例如: squats/middle.html)
                     const targetUrl = `${config.folder}/${levelFileMap[suggestion]}`;
-                    
                     console.log(`[系統] 載入訓練: ${targetUrl} (等級: ${suggestion})`);
 
-                    // E. 【關鍵修改】設定 iframe 的 src 並切換顯示區塊
                     const iframe = document.getElementById('trainingFrame');
                     iframe.src = targetUrl;
-                    
                     navigateTo('training');
                 },
                 error: function() {
-                    alert("讀取數據失敗，載入預設訓練頁面。");
                     document.getElementById('trainingFrame').src = `${config.folder}/middle.html`;
                     navigateTo('training');
                 }
             });
         }
 
-        // --- 3. 更新個人頁面 UI (維持您喜歡的設計) ---
+        // --- 3. 更新個人頁面 (含 詳細數據卡片 + 歷史表格) ---
         function updatePersonalData() {
             if (globalCSVData.length === 0) return;
 
             const typeKey = document.getElementById('statsType').value; 
             
-            // 對應 CSV 裡的 Posen 名稱
+            // 定義篩選規則
             let csvPosenName = '';
             if (typeKey === 'squat') csvPosenName = 'squats';
             else if (typeKey === 'kettlebell') csvPosenName = 'advances';
             else if (typeKey === 'sitting') csvPosenName = 'sitting';
 
-            // 篩選數據
+            // 篩選出該項目的所有資料
             const filteredRows = globalCSVData.filter(row => {
                 if (!row['Posen']) return false;
-                if (csvPosenName === 'squats') return row['Posen'].includes('squats') || row['Posen'] === 'lower' || row['Posen'] === 'middle';
-                if (csvPosenName === 'advances') return row['Posen'].includes('advances') || row['Posen'] === 'upper';
-                if (csvPosenName === 'sitting') return row['Posen'].includes('sitting');
+                // 寬鬆匹配，包含該關鍵字即算
+                if (typeKey === 'squat') return row['Posen'].includes('squats') || row['Posen'] === 'lower' || row['Posen'] === 'middle';
+                if (typeKey === 'kettlebell') return row['Posen'].includes('advances') || row['Posen'] === 'upper';
+                if (typeKey === 'sitting') return row['Posen'].includes('sitting');
                 return false;
             });
 
             const latest = filteredRows.length > 0 ? filteredRows[filteredRows.length - 1] : {};
             
-            // 呼叫您原本的 person_radarchart.js 計算分數
+            // A. 繪製雷達圖
             let radarScores = [0, 0, 0, 0];
             if (typeof calculateRadarData === 'function') {
                 const radarResult = calculateRadarData(filteredRows, csvPosenName);
                 radarScores = radarResult.scores;
             }
+            renderMyRadarChart(radarScores);
 
-            // 準備顯示欄位
+            // B. 更新詳細數據卡片文字
             let feKey = '', teKey = '', levelKey = '';
             if (typeKey === 'squat') { feKey = 'Squats_FE'; teKey = 'Squats_TE'; levelKey = 'last_squats_train_level'; }
             else if (typeKey === 'kettlebell') { feKey = 'Advances_FE'; teKey = 'Advances_TE'; levelKey = 'last_advances_train_level'; }
             else { feKey = 'Sitting_FE'; teKey = 'Sitting_TE'; levelKey = 'last_sitting_train_level'; }
 
             const suggestionRaw = latest[levelKey] || 'middle';
-            
-            // 填入 HTML
             const listHtml = `
                 <p>最近訓練: <span>${latest['Tid'] ? new Date(latest['Tid']).toLocaleString() : '無紀錄'}</span></p>
                 <p>訓練項目: <span>${displayMap[typeKey]}</span></p>
@@ -490,10 +510,65 @@
             `;
             document.getElementById('dataListContent').innerHTML = listHtml;
 
-            // 繪製圖表
-            renderMyRadarChart(radarScores);
+            // C. 渲染歷史表格 (新增功能)
+            renderHistoryTable(filteredRows, typeKey);
         }
 
+        // --- 新增：歷史表格渲染函式 ---
+        function renderHistoryTable(rows, typeKey) {
+            const container = document.getElementById('historyTableContainer');
+            container.innerHTML = '';
+
+            if (rows.length === 0) {
+                container.innerHTML = '<p style="text-align:center; padding:20px;">尚無此項目的訓練紀錄。</p>';
+                return;
+            }
+
+            // 反轉陣列以顯示最新的在上面，並只取前 50 筆以免頁面太長
+            const displayRows = [...rows].reverse().slice(0, 50);
+            const columns = TABLE_COLUMNS[typeKey];
+
+            // 建立表格 HTML
+            let tableHtml = '<table style="width:100%; border-collapse: collapse; font-size: 0.95rem;">';
+            
+            // 表頭
+            tableHtml += '<thead style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;"><tr>';
+            columns.forEach(col => {
+                tableHtml += `<th style="padding: 12px; text-align: left;">${HEADER_MAP[col] || col}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+
+            // 表格內容
+            tableHtml += '<tbody>';
+            displayRows.forEach(row => {
+                tableHtml += '<tr style="border-bottom: 1px solid #eee;">';
+                columns.forEach(col => {
+                    let val = row[col] || '-';
+                    
+                    // 特殊格式處理
+                    if (col === 'Tid') {
+                        // 簡化時間顯示
+                        try { val = new Date(val).toLocaleString('zh-TW', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e){}
+                    } else if (col.startsWith('last_')) {
+                        // 顯示中文等級
+                        val = displayMap[val] || val;
+                    }
+
+                    // 樣式微調：錯誤次數紅色，正確次數綠色
+                    let style = 'padding: 12px;';
+                    if (col.includes('_FE') && val != '0' && val != '-') style += 'color: red; font-weight:bold;';
+                    if (col.includes('_TE') && val != '0' && val != '-') style += 'color: green; font-weight:bold;';
+
+                    tableHtml += `<td style="${style}">${val}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+
+            container.innerHTML = tableHtml;
+        }
+
+        // --- 圖表繪製 ---
         function renderMyRadarChart(dataValues) {
             const ctx = document.getElementById('radarChart').getContext('2d');
             if (myRadarChart) myRadarChart.destroy();
@@ -512,36 +587,26 @@
                     }]
                 },
                 options: {
-                    scales: {
-                        r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 100 }
-                    },
+                    scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 100 } },
                     responsive: true,
                     maintainAspectRatio: false
                 }
             });
         }
 
-        // --- 4. 頁面導航功能 ---
+        // --- 頁面切換 ---
         function navigateTo(pageId) {
-            // 隱藏所有區塊
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active-section'));
-            // 顯示目標區塊
             document.getElementById(pageId).classList.add('active-section');
             
-            // 收起手機選單
             const navLinks = document.getElementById('navLinks');
             if(navLinks) navLinks.classList.remove('active');
 
-            // 如果是去「首頁」或「個人」，停止 iframe 裡的訓練 (重置 src) 以釋放鏡頭資源
             if (pageId !== 'training') {
                 const iframe = document.getElementById('trainingFrame');
-                if (iframe && iframe.src) {
-                    // 這裡設為空或設回歡迎頁，看您需求。設為空可確保鏡頭關閉。
-                    iframe.src = ""; 
-                }
+                if (iframe && iframe.src) iframe.src = ""; 
             }
 
-            // 如果進入個人頁面，更新數據
             if (pageId === 'personal') {
                 updatePersonalData();
             }
