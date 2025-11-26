@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 1. 執行非同步讀取 CSV
-            fetch('../person.csv', { cache: 'no-store' })
+            fetch('person.csv', { cache: 'no-store' })
                 .then(res => {
                     if (!res.ok) throw new Error(`讀取 CSV 失敗 (${res.status})`);
                     return res.text();
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 初始深蹲等級設定 (用於訓練檔案中) ---
     // 這裡保留原本的 DOMContentLoaded 邏輯來讀取初始的 window.currentTrainLevel，
     // 以確保頁面載入時，訓練邏輯可以知道預設的深蹲等級 (即使沒有點擊按鈕)。
-    fetch('../person.csv', { cache: 'no-store' })
+    fetch('person.csv', { cache: 'no-store' })
         .then(res => {
             if (!res.ok) throw new Error(`讀取初始 CSV 失敗 (${res.status})`);
             return res.text();
