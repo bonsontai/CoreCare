@@ -73,7 +73,8 @@
       </div>
 
       <article id="coach-message"
-        class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-lg bg-white rounded-lg shadow-2xl overflow-hidden animate-fade-in-up text-gray-800 z-50 border-l-8 border-blue-500">
+        class="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 md:w-auto md:max-w-2xl bg-white rounded-lg shadow-2xl overflow-hidden animate-fade-in-up text-gray-800 z-50 border-l-8 border-blue-500"
+        style="display: none;">
 
         <div class="message-header flex justify-between items-center px-4 py-3 bg-blue-500 text-white font-bold">
           <p id="message-title" class="m-0 p-0 text-lg">訊息標題</p>
@@ -97,8 +98,8 @@
 
     <div class="w-full md:w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
 
-      <div class="h-56 bg-gray-900 relative">
-        <video id="train-video" autoplay muted loop class="w-full h-full object-cover opacity-80">
+      <div class="h-96 bg-gray-900 relative">
+        <video id="train-video" autoplay muted loop class="w-full h-full object-contain opacity-80">
           <source src="../videos/squats_lower.mp4" type="video/mp4" />
           您的瀏覽器不支援影片播放。
         </video>

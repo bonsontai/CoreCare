@@ -71,34 +71,12 @@
           等待攝影機啟動...
         </div>
       </div>
-
-      <article id="coach-message"
-        class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-lg bg-white rounded-lg shadow-2xl overflow-hidden animate-fade-in-up text-gray-800 z-50 border-l-8 border-blue-500">
-
-        <div class="message-header flex justify-between items-center px-4 py-3 bg-blue-500 text-white font-bold">
-          <p id="message-title" class="m-0 p-0 text-lg">訊息標題</p>
-          <button class="delete hover:text-gray-200 transition" aria-label="delete" id="close-coach-message">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
-        </div>
-
-        <div class="message-body p-5 bg-white">
-          <span id="message-body-text" class="text-lg block mb-4">訊息內容</span>
-
-          <div class="flex justify-end gap-2">
-            <button class="button px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow transition"
-              id="next-step-button">
-              下一步
-            </button>
-          </div>
-        </div>
-      </article>
     </div>
 
     <div class="w-full md:w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
 
-      <div class="h-56 bg-gray-900 relative">
-        <video id="train-video" autoplay muted loop class="w-full h-full object-cover opacity-80">
+      <div class="h-96 bg-gray-900 relative">
+        <video id="train-video" autoplay muted loop class="w-full h-full object-contain opacity-80">
           <source src="../videos/squats_middle.mp4" type="video/mp4" />
           您的瀏覽器不支援影片播放。
         </video>
@@ -144,6 +122,29 @@
     </div>
   </div>
 
+
+  <article id="coach-message"
+    class="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 md:w-auto md:max-w-2xl bg-white rounded-lg shadow-2xl overflow-hidden animate-fade-in-up text-gray-800 z-50 border-l-8 border-blue-500"
+    style="display: none;">
+
+    <div class="message-header flex justify-between items-center px-4 py-3 bg-blue-500 text-white font-bold">
+      <p id="message-title" class="m-0 p-0 text-lg">訊息標題</p>
+      <button class="delete hover:text-gray-200 transition" aria-label="delete" id="close-coach-message">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <div class="message-body p-5 bg-white">
+      <span id="message-body-text" class="text-lg block mb-4">訊息內容</span>
+
+      <div class="flex justify-end gap-2">
+        <button class="button px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow transition"
+          id="next-step-button">
+          下一步
+        </button>
+      </div>
+    </div>
+  </article>
   <script>
     lucide.createIcons();
 
