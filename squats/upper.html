@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>深蹲訓練 - 徒手深蹲</title>
+    <title>深蹲訓練 - 座椅輔助深蹲</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -14,8 +14,8 @@
     <style>
         #canvas { transform: scaleX(-1); }
         @keyframes fade-in-up {
-            from { opacity: 0; transform: translate(-50%, 20px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -41,11 +41,39 @@
     <div class="flex-1 flex flex-col md:flex-row h-screen pt-16">
         <div class="flex-1 relative bg-black flex justify-center items-center overflow-hidden group">
             <canvas id="canvas" class="w-full h-full object-contain"></canvas>
-            <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div id="idle-hint" class="text-gray-500 text-sm border border-gray-700 px-4 py-2 rounded bg-gray-900/50 backdrop-blur">
+            
+            <div id="idle-hint" class="absolute inset-0 pointer-events-none flex items-center justify-center z-40">
+                <div class="text-gray-500 text-sm border border-gray-700 px-4 py-2 rounded bg-gray-900/80 backdrop-blur">
                     等待攝影機啟動...
                 </div>
             </div>
+
+            <article id="coach-message" class="absolute bottom-0 left-0 w-full z-50 animate-fade-in-up shadow-[0_-4px_20px_rgba(0,0,0,0.3)]" style="display: none;">
+                <div class="flex flex-col w-full">
+                    <div class="message-header flex justify-between items-center px-4 py-2 bg-blue-600 text-white shrink-0">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4"></i>
+                            <p id="message-title" class="m-0 p-0 font-bold tracking-wide text-sm md:text-base">系統就緒</p>
+                        </div>
+                        <button class="delete hover:bg-white/20 rounded p-1 transition" aria-label="delete" id="close-coach-message">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="message-body px-6 py-4 bg-white/90 backdrop-blur-md text-gray-800">
+                        <div class="flex flex-row items-center justify-between gap-4">
+                            <span id="message-body-text" class="text-lg md:text-xl font-bold text-gray-800 leading-snug flex-1">
+                                請點擊右側「開始訓練」
+                            </span>
+                            <div class="shrink-0">
+                                <button class="button px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition font-bold text-sm md:text-base whitespace-nowrap" id="next-step-button" style="display: none;">
+                                    下一步
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </article>
         </div>
 
         <div class="w-full md:w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
@@ -86,31 +114,21 @@
         </div>
     </div>
 
-    <article id="coach-message" class="fixed bottom-12 left-1/2 transform -translate-x-1/2 w-11/12 md:w-auto md:min-w-[450px] md:max-w-2xl bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.25)] overflow-hidden animate-fade-in-up text-gray-800 z-50 border-l-[10px] border-l-blue-600" style="display: none;">
-        
-        <div class="message-header flex justify-between items-center px-6 py-4 bg-blue-600 text-white">
-            <p id="message-title" class="m-0 p-0 text-xl font-bold tracking-wider">訊息標題</p>
-            <button class="delete text-blue-100 hover:text-white hover:bg-blue-700 rounded-full transition p-2" aria-label="delete" id="close-coach-message">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-        </div>
-        
-        <div class="message-body p-8 bg-gray-50">
-            <span id="message-body-text" class="text-lg md:text-xl block mb-8 font-medium text-gray-800 leading-relaxed">訊息內容</span>
-            <div class="flex justify-end gap-3">
-                <button class="button px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition font-bold text-lg" id="next-step-button">
-                    下一步
-                </button>
-            </div>
-        </div>
-    </article>
-
     <script>
         lucide.createIcons();
         const canvasEl = document.getElementById('canvas');
         const idleHint = document.getElementById('idle-hint');
+        const coachMsg = document.getElementById('coach-message');
+
         const observer = new MutationObserver(() => {
-            if (canvasEl.width > 0) idleHint.style.display = 'none';
+            if (canvasEl.width > 0) {
+                idleHint.style.display = 'none';
+                const trainBtn = document.getElementById('trainButton');
+                const isTraining = trainBtn.textContent.includes('停止');
+                if (!isTraining && coachMsg.style.display === 'none') {
+                    coachMsg.style.display = 'block';
+                }
+            }
         });
         observer.observe(canvasEl, { attributes: true });
 
