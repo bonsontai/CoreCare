@@ -13,11 +13,7 @@
 
     <style>
         #canvas { transform: scaleX(-1); }
-        @keyframes fade-in-up {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
+        /* 移除舊的 keyframes 動畫，改用 Tailwind Transition */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -43,14 +39,13 @@
         <div class="flex-1 relative bg-black flex justify-center items-center overflow-hidden group">
             <canvas id="canvas" class="w-full h-full object-contain"></canvas>
             
-            <div id="idle-hint" class="absolute inset-0 pointer-events-none flex items-center justify-center z-40">
+            <div id="idle-hint" class="absolute inset-0 pointer-events-none flex items-center justify-center z-40 transition-opacity duration-300">
                 <div class="text-gray-500 text-sm border border-gray-700 px-4 py-2 rounded bg-gray-900/80 backdrop-blur">
                     等待攝影機啟動...
                 </div>
             </div>
 
-            <article id="coach-message" class="absolute bottom-0 left-0 w-full z-50 animate-fade-in-up shadow-[0_-4px_20px_rgba(0,0,0,0.3)]" style="display: none;">
-                
+            <article id="coach-message" class="absolute bottom-0 left-0 w-full z-50 transition-all duration-500 transform translate-y-full opacity-0 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]" style="display: none;">
                 <div class="flex flex-col w-full">
                     <div class="message-header flex justify-between items-center px-4 py-2 bg-blue-600 text-white shrink-0">
                         <div class="flex items-center gap-2">
@@ -122,23 +117,31 @@
         const idleHint = document.getElementById('idle-hint');
         const coachMsg = document.getElementById('coach-message');
 
-        // ★★★ 關鍵邏輯：當 Canvas 有畫面時，隱藏中間提示，並顯示底部 Message ★★★
-        const observer = new MutationObserver(() => {
-            if (canvasEl.width > 0) {
-                // 1. 隱藏中間的「等待啟動」
-                idleHint.style.display = 'none';
+        // ★★★ 強制監聽器：每 0.5 秒檢查一次狀態，保證觸發 ★★★
+        const statusChecker = setInterval(() => {
+            // 檢查條件：如果 window.currentStream 為真 (由 UI.js 設定) 或 canvas 有寬度
+            if (window.currentStream || (canvasEl.width > 0 && canvasEl.width !== 300)) {
                 
-                // 2. 檢查訓練是否已開始 (透過按鈕狀態判斷)
+                // 1. 隱藏 "等待啟動"
+                if (idleHint.style.display !== 'none') {
+                    idleHint.style.opacity = '0'; // 淡出
+                    setTimeout(() => idleHint.style.display = 'none', 300);
+                }
+
+                // 2. 顯示底部訊息框
                 const trainBtn = document.getElementById('trainButton');
                 const isTraining = trainBtn.textContent.includes('停止');
 
-                // 3. 如果還沒開始訓練，自動顯示「系統就緒」的底部訊息框
+                // 如果還沒開始訓練，且訊息框是隱藏的 -> 顯示它
                 if (!isTraining && coachMsg.style.display === 'none') {
-                    coachMsg.style.display = 'block'; // 顯示底部框
+                    coachMsg.style.display = 'block';
+                    // 微小延遲後移除位移和透明，觸發滑入動畫
+                    setTimeout(() => {
+                        coachMsg.classList.remove('translate-y-full', 'opacity-0');
+                    }, 50);
                 }
             }
-        });
-        observer.observe(canvasEl, { attributes: true });
+        }, 500);
 
         function goHome() {
             if (window.parent && typeof window.parent.navigateTo === 'function') {

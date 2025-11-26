@@ -120,17 +120,32 @@
         const idleHint = document.getElementById('idle-hint');
         const coachMsg = document.getElementById('coach-message');
 
-        const observer = new MutationObserver(() => {
-            if (canvasEl.width > 0) {
-                idleHint.style.display = 'none';
+        // ★★★ 穩健的狀態檢查邏輯 ★★★
+        // 每 500ms 檢查一次相機狀態，比 MutationObserver 更可靠
+        const checkInterval = setInterval(() => {
+            // 檢查全域變數 window.currentStream (由 UI.js 設定)
+            // 或者檢查 Canvas 是否有寬度
+            if (window.currentStream || (canvasEl.width > 0 && canvasEl.width !== 300)) { // 300 是預設寬度
+                
+                // 1. 隱藏閒置提示
+                if (idleHint.style.display !== 'none') {
+                    idleHint.style.opacity = '0';
+                    setTimeout(() => { idleHint.style.display = 'none'; }, 300);
+                }
+
+                // 2. 顯示教練訊息 (如果還沒顯示且未開始訓練)
                 const trainBtn = document.getElementById('trainButton');
                 const isTraining = trainBtn.textContent.includes('停止');
+
                 if (!isTraining && coachMsg.style.display === 'none') {
                     coachMsg.style.display = 'block';
+                    // 延遲一下讓 display:block 生效後再執行動畫 class
+                    setTimeout(() => {
+                        coachMsg.classList.remove('translate-y-full', 'opacity-0');
+                    }, 50);
                 }
             }
-        });
-        observer.observe(canvasEl, { attributes: true });
+        }, 500);
 
         function goHome() {
             if (window.parent && typeof window.parent.navigateTo === 'function') {
