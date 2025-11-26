@@ -2,79 +2,564 @@
 <html lang="zh-Hant">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CoreCare</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
-  <link rel="stylesheet" href="home.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreCare - 智能健康訓練平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* --- 基礎設定 --- */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --nav-bg: #fff;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        /* --- 導覽列 (Navbar) --- */
+        header {
+            background-color: var(--nav-bg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+            margin: 0;
+            padding: 0;
+            align-items: center;
+        }
+
+        .nav-links li {
+            position: relative;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary-color);
+        }
+
+        /* 下拉選單 (Dropdown) */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            min-width: 160px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            top: 100%;
+            left: 0;
+            z-index: 1;
+            border-radius: 4px;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* 漢堡選單按鈕 (Mobile) */
+        .hamburger {
+            display: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* --- 主內容區塊 --- */
+        main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            min-height: 80vh;
+        }
+
+        .section {
+            display: none;
+            /* 預設隱藏所有區塊 */
+            animation: fadeIn 0.5s;
+        }
+
+        .section.active-section {
+            display: block;
+            /* 顯示當前區塊 */
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* --- 首頁樣式 --- */
+        .hero {
+            text-align: center;
+            padding: 5rem 1rem;
+            background: linear-gradient(135deg, #007bff 0%, #00d2ff 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        /* --- 個人頁面樣式 --- */
+        .personal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .filter-select {
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .data-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .data-list p {
+            border-bottom: 1px solid #eee;
+            padding: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .data-list span {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* --- 訓練頁面樣式 --- */
+        .training-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .training-result h3 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin: 10px 0;
+        }
+
+        .level-badge {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        /* --- 響應式設計 (RWD) --- */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+                flex-direction: column;
+                width: 100%;
+                background-color: white;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-links li {
+                width: 100%;
+                text-align: center;
+            }
+
+            .dropdown-content {
+                position: static;
+                box-shadow: none;
+                background-color: #f9f9f9;
+                display: none;
+                /* Mobile預設摺疊 */
+            }
+
+            .dropdown.active .dropdown-content {
+                display: block;
+            }
+
+            .hamburger {
+                display: block;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <!-- 框架A：Bulma Navbar 導覽列 -->
-  <header>
-    <nav class="navbar is-primary" role="navigation" aria-label="main navigation">
-      <div class="navbar-brand">
-        <!-- Logo：改為同層 picture/Logo.png；點擊回到 main.html（載入到 iframe） -->
-        <a class="navbar-item" href="#" data-src="main.html" id="logo-link" title="CoreCare">
-          <h1 class="title is-1">CoreCare</h1>
-        </a>
 
-        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="mainNavbar">
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
-        </a>
-      </div>
-
-      <div id="mainNavbar" class="navbar-menu">
-        <div class="navbar-start">
-          <a class="navbar-item" href="#" data-src="main.html">首頁</a>
-          <a id="person-link" class="navbar-item person-link" href="#" data-src="person.html">個人</a>
-
-          <div class="navbar-item has-dropdown is-hoverable" id="trainingDropdown">
-            <a class="navbar-link">訓練</a>
-            <div class="navbar-dropdown">
-              <a id="squat-training-link" class="navbar-item training-link" href="#" data-train-type="squats">深蹲訓練</a>
-              <a id="advances-training-link" class="navbar-item training-link" href="#" data-train-type="advances">壺鈴訓練</a>
-              <a id="sitting-training-link" class="navbar-item training-link" href="#" data-train-type="sitting">坐姿抬腿訓練</a>
+    <header>
+        <nav>
+            <a href="#" class="logo" onclick="navigateTo('home')">CoreCare</a>
+            <div class="hamburger" onclick="toggleMenu()">
+                <i class="fas fa-bars"></i>
             </div>
-          </div>
-        </div>
-      </div>
-    </nav>
-  </header>
+            <ul class="nav-links" id="navLinks">
+                <li><a onclick="navigateTo('home')">首頁</a></li>
+                <li><a onclick="navigateTo('personal')">個人</a></li>
+                <li class="dropdown" onclick="toggleDropdown(this)">
+                    <a>訓練 <i class="fas fa-caret-down"></i></a>
+                    <div class="dropdown-content">
+                        <a onclick="loadTraining('squat')">深蹲訓練</a>
+                        <a onclick="loadTraining('kettlebell')">壺鈴訓練</a>
+                        <a onclick="loadTraining('sitting')">坐姿訓練</a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+    </header>
 
-  <!-- 框架B：可切換內容的區域（以 iframe 呈現） -->
-  <main>
-    <iframe id="content" src="main.html"></iframe>
-  </main>
+    <main>
+        <section id="home" class="section active-section">
+            <div class="hero">
+                <h1>歡迎來到 CoreCare</h1>
+                <p>您的智能姿勢矯正與健康訓練夥伴</p>
+                <button onclick="navigateTo('personal')"
+                    style="margin-top: 20px; padding: 10px 20px; cursor: pointer; border: none; background: white; color: #007bff; border-radius: 5px; font-weight: bold;">查看我的數據</button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div class="data-card">
+                    <h3><i class="fas fa-bullseye"></i> 精準追蹤</h3>
+                    <p>實時監控您的訓練姿勢，提供即時反饋。</p>
+                </div>
+                <div class="data-card">
+                    <h3><i class="fas fa-chart-line"></i> 數據分析</h3>
+                    <p>透過雷達圖分析您的投入度與掌握度。</p>
+                </div>
+                <div class="data-card">
+                    <h3><i class="fas fa-dumbbell"></i> 智能推薦</h3>
+                    <p>根據您的表現自動調整訓練強度。</p>
+                </div>
+            </div>
+        </section>
 
-  <!-- 框架C：日期 / 時間 / 地點 / 溫度 -->
-  <footer>
-    <div class="footer-wrap">
-      <div class="footer-left">
-        <span id="gregorian"></span>
-        <span class="sep">·</span>
-        <span id="weekday"></span>
-      </div>
-      <div class="footer-center">
-        <span id="period" class="tag is-info is-medium">—</span>
-        <span id="time12" class="time-strong">--:--</span>
-        <span class="sep">·</span>
-        <span id="temp" class="temp-strong">--°C</span>
-      </div>
-      <div class="footer-right">
-        <span class="icon-text">
-          <span class="icon"><i class="fas fa-location-dot"></i></span>
-          <span id="place">定位中…</span>
-        </span>
-      </div>
-    </div>
-  </footer>
+        <section id="personal" class="section">
+            <div class="personal-header">
+                <h2>個人訓練數據</h2>
+                <select id="statsType" class="filter-select" onchange="updatePersonalData()">
+                    <option value="squat">深蹲數據</option>
+                    <option value="kettlebell">壺鈴數據</option>
+                    <option value="sitting">坐姿數據</option>
+                </select>
+            </div>
 
-  <script src="index.js"></script>
-  <script defer src="https://use.fontawesome.com/releases/v6.4.2/js/all.js"></script>
-  <script src="squats_level.js"></script>
+            <div class="stats-grid">
+                <div class="data-card">
+                    <h3>詳細數據</h3>
+                    <div class="data-list" id="dataListContent">
+                    </div>
+                </div>
+
+                <div class="data-card">
+                    <h3>能力分析雷達圖</h3>
+                    <div class="chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="training" class="section">
+            <iframe id="trainingFrame" name="trainingFrame" 
+                    style="width: 100%; height: 85vh; border: none; border-radius: 10px; background-color: #fff;" 
+                    src="">
+            </iframe>
+        </section>
+    </main>
+
+    <script src="person_radarchart.js"></script>
+
+    <script>
+        // --- 全域變數 ---
+        let globalCSVData = []; 
+        let myRadarChart = null;
+
+        // 訓練路徑對應 (對應您的資料夾結構)
+        const trainingPaths = {
+            squat: { column: 'last_squats_train_level', folder: 'squats' },
+            kettlebell: { column: 'last_advances_train_level', folder: 'advances' }, 
+            sitting: { column: 'last_sitting_train_level', folder: 'sitting' }
+        };
+
+        // 訓練頁面檔案名稱對應
+        const levelFileMap = {
+            'lower': 'lower.html',
+            'middle': 'middle.html',
+            'upper': 'upper.html',
+            'upperPro': 'upper.html'
+        };
+
+        // 中文顯示對應
+        const displayMap = {
+            'squat': '深蹲', 'kettlebell': '壺鈴', 'sitting': '坐姿',
+            'lower': '初階', 'middle': '中階', 'upper': '高階', 'upperPro': '進階'
+        };
+
+        // --- 1. 讀取 CSV 資料庫 ---
+        function fetchCsvData() {
+            Papa.parse("person.csv?t=" + Date.now(), {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function (results) {
+                    console.log("CSV 讀取成功", results.data.length + " 筆資料");
+                    globalCSVData = results.data;
+                    // 若當前在個人頁面，立即更新數據
+                    if(document.getElementById('personal').classList.contains('active-section')){
+                        updatePersonalData();
+                    }
+                },
+                error: function (err) {
+                    console.error("無法讀取 person.csv", err);
+                }
+            });
+        }
+
+        // --- 2. 核心：訓練跳轉邏輯 (修改為 iframe 模式) ---
+        function loadTraining(typeKey) {
+            // A. 取得設定
+            const config = trainingPaths[typeKey];
+            if (!config) return alert("未知的訓練類型");
+
+            // B. 讀取最新 CSV 以確保等級準確 (雙重保險)
+            Papa.parse("person.csv?t=" + Date.now(), {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const rows = results.data;
+                    const lastRow = rows[rows.length - 1] || {};
+                    
+                    // C. 取得建議等級 (若無則預設 middle)
+                    let suggestion = lastRow[config.column];
+                    if (!suggestion || !levelFileMap[suggestion]) {
+                        console.warn(`[系統] 找不到 ${typeKey} 的建議等級，預設使用 middle`);
+                        suggestion = 'middle';
+                    }
+
+                    // D. 組合路徑 (例如: squats/middle.html)
+                    const targetUrl = `${config.folder}/${levelFileMap[suggestion]}`;
+                    
+                    console.log(`[系統] 載入訓練: ${targetUrl} (等級: ${suggestion})`);
+
+                    // E. 【關鍵修改】設定 iframe 的 src 並切換顯示區塊
+                    const iframe = document.getElementById('trainingFrame');
+                    iframe.src = targetUrl;
+                    
+                    navigateTo('training');
+                },
+                error: function() {
+                    alert("讀取數據失敗，載入預設訓練頁面。");
+                    document.getElementById('trainingFrame').src = `${config.folder}/middle.html`;
+                    navigateTo('training');
+                }
+            });
+        }
+
+        // --- 3. 更新個人頁面 UI (維持您喜歡的設計) ---
+        function updatePersonalData() {
+            if (globalCSVData.length === 0) return;
+
+            const typeKey = document.getElementById('statsType').value; 
+            
+            // 對應 CSV 裡的 Posen 名稱
+            let csvPosenName = '';
+            if (typeKey === 'squat') csvPosenName = 'squats';
+            else if (typeKey === 'kettlebell') csvPosenName = 'advances';
+            else if (typeKey === 'sitting') csvPosenName = 'sitting';
+
+            // 篩選數據
+            const filteredRows = globalCSVData.filter(row => {
+                if (!row['Posen']) return false;
+                if (csvPosenName === 'squats') return row['Posen'].includes('squats') || row['Posen'] === 'lower' || row['Posen'] === 'middle';
+                if (csvPosenName === 'advances') return row['Posen'].includes('advances') || row['Posen'] === 'upper';
+                if (csvPosenName === 'sitting') return row['Posen'].includes('sitting');
+                return false;
+            });
+
+            const latest = filteredRows.length > 0 ? filteredRows[filteredRows.length - 1] : {};
+            
+            // 呼叫您原本的 person_radarchart.js 計算分數
+            let radarScores = [0, 0, 0, 0];
+            if (typeof calculateRadarData === 'function') {
+                const radarResult = calculateRadarData(filteredRows, csvPosenName);
+                radarScores = radarResult.scores;
+            }
+
+            // 準備顯示欄位
+            let feKey = '', teKey = '', levelKey = '';
+            if (typeKey === 'squat') { feKey = 'Squats_FE'; teKey = 'Squats_TE'; levelKey = 'last_squats_train_level'; }
+            else if (typeKey === 'kettlebell') { feKey = 'Advances_FE'; teKey = 'Advances_TE'; levelKey = 'last_advances_train_level'; }
+            else { feKey = 'Sitting_FE'; teKey = 'Sitting_TE'; levelKey = 'last_sitting_train_level'; }
+
+            const suggestionRaw = latest[levelKey] || 'middle';
+            
+            // 填入 HTML
+            const listHtml = `
+                <p>最近訓練: <span>${latest['Tid'] ? new Date(latest['Tid']).toLocaleString() : '無紀錄'}</span></p>
+                <p>訓練項目: <span>${displayMap[typeKey]}</span></p>
+                <p>最近結果: <span>${latest['Level'] || '尚未訓練'}</span></p>
+                <p>錯誤次數: <span style="color:red">${latest[feKey] || 0}</span></p>
+                <p>正確次數: <span style="color:green">${latest[teKey] || 0}</span></p>
+                <p>系統建議: <span style="color:#007bff; font-size:1.1em; font-weight:bold">${displayMap[suggestionRaw] || suggestionRaw}</span></p>
+            `;
+            document.getElementById('dataListContent').innerHTML = listHtml;
+
+            // 繪製圖表
+            renderMyRadarChart(radarScores);
+        }
+
+        function renderMyRadarChart(dataValues) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            if (myRadarChart) myRadarChart.destroy();
+
+            myRadarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['姿勢準確度', '等級掌握度', '穩定性分數', '總體投入度'],
+                    datasets: [{
+                        label: '能力指標',
+                        data: dataValues,
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(0, 123, 255, 1)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 100 }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // --- 4. 頁面導航功能 ---
+        function navigateTo(pageId) {
+            // 隱藏所有區塊
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active-section'));
+            // 顯示目標區塊
+            document.getElementById(pageId).classList.add('active-section');
+            
+            // 收起手機選單
+            const navLinks = document.getElementById('navLinks');
+            if(navLinks) navLinks.classList.remove('active');
+
+            // 如果是去「首頁」或「個人」，停止 iframe 裡的訓練 (重置 src) 以釋放鏡頭資源
+            if (pageId !== 'training') {
+                const iframe = document.getElementById('trainingFrame');
+                if (iframe && iframe.src) {
+                    // 這裡設為空或設回歡迎頁，看您需求。設為空可確保鏡頭關閉。
+                    iframe.src = ""; 
+                }
+            }
+
+            // 如果進入個人頁面，更新數據
+            if (pageId === 'personal') {
+                updatePersonalData();
+            }
+        }
+
+        function toggleMenu() {
+            document.getElementById('navLinks').classList.toggle('active');
+        }
+        function toggleDropdown(element) {
+            if (window.innerWidth <= 768) element.classList.toggle('active');
+        }
+
+        // 初始化
+        window.onload = function () {
+            fetchCsvData();
+            navigateTo('home');
+        };
+    </script>
 </body>
 
 </html>
