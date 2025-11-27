@@ -198,24 +198,6 @@ function drawPose(pose) {
 // 啟動按鈕改為觸發 TM 的 init
 startButton.addEventListener('click', init);
 // --- 其他邏輯保持不變 ---
-
-function positionControlArea() {
-  const frame3 = document.querySelector('.frame3');
-  const controlArea = document.querySelector('.control-area');
-
-  if (frame3 && controlArea) {
-    const frame3Rect = frame3.getBoundingClientRect();
-
-    // ⭐️ 關鍵：將 controlArea 的 top 設為 frame3 的底部位置 + 20px 間距
-    controlArea.style.position = 'absolute'; // 確保它是絕對定位 
-    controlArea.style.top = (frame3Rect.bottom + 20) + 'px';
-    controlArea.style.bottom = 'auto'; // 確保 bottom 屬性被清除
-  }
-}
-
-window.addEventListener('load', positionControlArea);
-window.addEventListener('resize', positionControlArea);
-
 // ------------------------------------------------------------------
 // 3. CSV 讀取與 Level 初始化 (已移除 UI 更新)
 // ------------------------------------------------------------------

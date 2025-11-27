@@ -271,7 +271,7 @@ window.SquatTrainer = {
       this.isTraining = false;
       this.showCoachMessage('訓練調整', '系統偵測您連續 3 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
         {
-          text: '確認',
+          text: '確認退階',
           action: async () => {
             const nextLevel = this.getDynamicLevel('demote');
             await this.saveAndNavigate('demote', nextLevel);

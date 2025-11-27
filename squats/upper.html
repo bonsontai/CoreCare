@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>深蹲訓練 - 徒手深蹲</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
@@ -12,22 +13,33 @@
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 
     <style>
-        #canvas { transform: scaleX(-1); }
-        @keyframes fade-in-up {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        #canvas {
+            transform: scaleX(-1);
+            /* 關鍵修正：強制高度為 
+            0%，避免被 auto 撐大 */
+            width: 100% !important;
+            height: 100% !important;
+            /* 保持影像比例，不變形 */
+            object-fit: contain;
         }
-        .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
+
 <body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-hidden">
 
     <div class="bg-gray-800 px-4 py-3 flex justify-between items-center shadow-md fixed top-0 w-full z-20 h-16">
         <div>
             <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                <span class="uppercase text-blue-400">TRAINING</span> 
+                <span class="uppercase text-blue-400">TRAINING</span>
                 <span class="text-gray-400 text-sm">/</span>
                 <span id="levelTitle">徒手深蹲</span>
             </h2>
@@ -39,34 +51,44 @@
     </div>
 
     <div class="flex-1 flex flex-col md:flex-row h-screen pt-16">
-        <div class="flex-1 relative bg-black flex justify-center items-center overflow-hidden group">
-            <canvas id="canvas" class="w-full h-full object-contain"></canvas>
-            
-            <div id="idle-hint" class="absolute inset-0 pointer-events-none flex items-center justify-center z-40">
-                <div class="text-gray-500 text-sm border border-gray-700 px-4 py-2 rounded bg-gray-900/80 backdrop-blur">
+
+        <div class="flex-1 min-w-0 relative bg-black overflow-hidden group">
+            <canvas id="canvas" class="absolute inset-0 w-full h-full object-contain z-0"></canvas>
+
+            <div id="idle-hint"
+                class="absolute inset-0 pointer-events-none flex items-center justify-center z-40 transition-opacity duration-300">
+                <div
+                    class="text-gray-500 text-sm border border-gray-700 px-4 py-2 rounded bg-gray-900/80 backdrop-blur">
                     等待攝影機啟動...
                 </div>
             </div>
 
-            <article id="coach-message" class="absolute bottom-0 left-0 w-full z-50 animate-fade-in-up shadow-[0_-4px_20px_rgba(0,0,0,0.3)]" style="display: none;">
+            <article id="coach-message"
+                class="absolute bottom-0 left-0 w-full z-50 transform-gpu transition-all duration-700 transform translate-y-full opacity-0 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]"
+                style="display: none;">
                 <div class="flex flex-col w-full">
-                    <div class="message-header flex justify-between items-center px-4 py-2 bg-blue-600 text-white shrink-0">
+                    <div
+                        class="message-header flex justify-between items-center px-4 py-2 bg-blue-600 text-white shrink-0">
                         <div class="flex items-center gap-2">
                             <i data-lucide="info" class="w-4 h-4"></i>
                             <p id="message-title" class="m-0 p-0 font-bold tracking-wide text-sm md:text-base">系統就緒</p>
                         </div>
-                        <button class="delete hover:bg-white/20 rounded p-1 transition" aria-label="delete" id="close-coach-message">
+                        <button class="delete hover:bg-white/20 rounded p-1 transition" aria-label="delete"
+                            id="close-coach-message">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
-                    
+
                     <div class="message-body px-6 py-4 bg-white/90 backdrop-blur-md text-gray-800">
                         <div class="flex flex-row items-center justify-between gap-4">
-                            <span id="message-body-text" class="text-lg md:text-xl font-bold text-gray-800 leading-snug flex-1">
+                            <span id="message-body-text"
+                                class="text-lg md:text-xl font-bold text-gray-800 leading-snug flex-1">
                                 請點擊右側「開始訓練」
                             </span>
                             <div class="shrink-0">
-                                <button class="button px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition font-bold text-sm md:text-base whitespace-nowrap" id="next-step-button" style="display: none;">
+                                <button
+                                    class="button px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition font-bold text-sm md:text-base whitespace-nowrap"
+                                    id="next-step-button" style="display: none;">
                                     下一步
                                 </button>
                             </div>
@@ -95,19 +117,23 @@
 
             <div class="p-4 space-y-3 flex-1 overflow-y-auto no-scrollbar pb-20">
                 <div class="mb-4 text-center">
-                    <div id="status-message" class="text-yellow-400 font-mono text-sm font-bold bg-gray-900/50 py-2 rounded border border-yellow-400/30">
+                    <div id="status-message"
+                        class="text-yellow-400 font-mono text-sm font-bold bg-gray-900/50 py-2 rounded border border-yellow-400/30">
                         等待啟動...
                     </div>
                 </div>
-                <button id="startButton" class="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg transition flex justify-center items-center gap-2 group">
+                <button id="startButton"
+                    class="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg transition flex justify-center items-center gap-2 group">
                     <i data-lucide="camera" class="w-5 h-5 group-hover:scale-110 transition"></i>
                     啟動姿勢偵測
                 </button>
-                <button id="trainButton" class="w-full py-4 rounded-lg bg-green-600 hover:bg-green-500 text-white font-bold text-lg shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2">
+                <button id="trainButton"
+                    class="w-full py-4 rounded-lg bg-green-600 hover:bg-green-500 text-white font-bold text-lg shadow-lg transition transform active:scale-95 flex justify-center items-center gap-2">
                     <i data-lucide="play-circle" class="w-6 h-6"></i>
                     開始訓練
                 </button>
-                <button onclick="goHome()" class="w-full py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm mt-4 border border-gray-600">
+                <button onclick="goHome()"
+                    class="w-full py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm mt-4 border border-gray-600">
                     返回首頁
                 </button>
             </div>
@@ -120,29 +146,22 @@
         const idleHint = document.getElementById('idle-hint');
         const coachMsg = document.getElementById('coach-message');
 
-        // ★★★ 穩健的狀態檢查邏輯 ★★★
-        // 每 500ms 檢查一次相機狀態，比 MutationObserver 更可靠
-        const checkInterval = setInterval(() => {
-            // 檢查全域變數 window.currentStream (由 UI.js 設定)
-            // 或者檢查 Canvas 是否有寬度
-            if (window.currentStream || (canvasEl.width > 0 && canvasEl.width !== 300)) { // 300 是預設寬度
-                
-                // 1. 隱藏閒置提示
+        // 強制顯示訊息框 (保險機制)
+        setTimeout(() => {
+            if (coachMsg.style.display === 'none') {
+                coachMsg.style.display = 'block';
+                setTimeout(() => {
+                    coachMsg.classList.remove('translate-y-full', 'opacity-0');
+                }, 50);
+            }
+        }, 1000);
+
+        // 狀態監聽
+        const statusChecker = setInterval(() => {
+            if (window.currentStream || (canvasEl.width > 0 && canvasEl.width !== 300)) {
                 if (idleHint.style.display !== 'none') {
                     idleHint.style.opacity = '0';
-                    setTimeout(() => { idleHint.style.display = 'none'; }, 300);
-                }
-
-                // 2. 顯示教練訊息 (如果還沒顯示且未開始訓練)
-                const trainBtn = document.getElementById('trainButton');
-                const isTraining = trainBtn.textContent.includes('停止');
-
-                if (!isTraining && coachMsg.style.display === 'none') {
-                    coachMsg.style.display = 'block';
-                    // 延遲一下讓 display:block 生效後再執行動畫 class
-                    setTimeout(() => {
-                        coachMsg.classList.remove('translate-y-full', 'opacity-0');
-                    }, 50);
+                    setTimeout(() => idleHint.style.display = 'none', 300);
                 }
             }
         }, 500);
@@ -159,4 +178,5 @@
     <script src="UI.js"></script>
     <script src="middleAndupper_train.js"></script>
 </body>
+
 </html>

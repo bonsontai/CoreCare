@@ -223,7 +223,7 @@ window.SquatTrainer = {
         }
 
         // 檢查里程碑 4: 總共 10 次正確
-        if (this.correctCount === 10) {
+        if (this.correctCount === 5) {
             this.isTraining = false;
             this.resetState('IDLE');
 
@@ -270,8 +270,8 @@ window.SquatTrainer = {
         const totalAttempts = this.correctCount + this.errorCount;
 
         // 檢查里程碑 2: 前 3 次測試結束 (3 Error / 0 Correct)
-        if (totalAttempts === 3) {
-            if (this.errorCount === 3 && this.correctCount === 0) {
+        if (totalAttempts === 2) {
+            if (this.errorCount === 2 && this.correctCount === 0) {
                 // 3 Error: 進入退階
                 this.isTraining = false;
                 this.showCoachMessage('訓練調整', '系統偵測您連續 3 次動作錯誤，將為您調整至較簡單的訓練。', 'error', [
@@ -291,7 +291,7 @@ window.SquatTrainer = {
         }
 
         // 檢查里程碑 5: 累計 5 次錯誤
-        if (this.errorCount === 5) {
+        if (this.errorCount === 3) {
             this.isTraining = false;
             this.showCoachMessage('訓練調整', '累計 5 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
                 {
@@ -306,7 +306,7 @@ window.SquatTrainer = {
         }
 
         // --- 標準錯誤訊息 ---
-        if (this.isTraining && totalAttempts !== 3 && this.errorCount < 5) {
+        if (this.isTraining && totalAttempts !== 3 && this.errorCount < 3) {
 
             // 1. 顯示錯誤訊息 (無按鈕)
             this.showCoachMessage('姿勢錯誤，請調整！', message, 'error');
