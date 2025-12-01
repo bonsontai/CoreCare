@@ -9,3 +9,7 @@ Tid,Posen,Level,Squats_FE,Squats_TE,Advances_FE,Advances_TE,Sitting_FE,Sitting_T
 2025-11-27T12:06:07.318Z,squats,demote,3,0,,,,,middle,upper,
 2025-11-27T12:10:55.284Z,squats,demote,3,0,,,,,lower,upper,
 2025-11-27T12:11:42.724Z,squats,stopped,0,6,,,,,lower,upper,
+2025-12-01T11:03:49.041Z,squats,promote_auto,0,5,,,,,middle,upper,
+2025-12-01T11:08:18.421Z,squats,promote_auto,0,5,,,,,upper,upper,
+2025-12-01T11:16:18.691Z,squats,promote_auto,1,5,,,,,upperPro,upper,
+2025-12-01T11:25:12.220Z,squats,demote,5,1,,,,,lower,upper,
