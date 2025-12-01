@@ -370,7 +370,7 @@
         let globalCSVData = [];
         let myRadarChart = null;
 
-        // --- 設定與對照表 (移植自原本的 person.js) ---
+        // --- 設定與對照表 ---
         const trainingPaths = {
             squat: { column: 'last_squats_train_level', folder: 'squats' },
             kettlebell: { column: 'last_advances_train_level', folder: 'advances' },
@@ -410,9 +410,11 @@
             'sitting': ['Tid', 'Level', 'Sitting_FE', 'Sitting_TE', 'last_sitting_train_level']
         };
 
-        // --- 1. 讀取 CSV 資料庫 ---
+        // --- 1. 讀取 CSV 資料庫 (已改用 API) ---
         function fetchCsvData() {
-            const csvUrl = "http://localhost:3000/get-csv?t=" + Date.now()
+            // ✅ 使用 /get-csv API 讀取，避免快取
+            const csvUrl = "/get-csv?t=" + Date.now();
+            
             Papa.parse(csvUrl, {
                 download: true,
                 header: true,
@@ -425,18 +427,17 @@
                     }
                 },
                 error: function (err) {
-                    console.error("無法讀取 person.csv", err);
+                    console.error("無法讀取 CSV", err);
                 }
             });
         }
 
-        // --- 2. 核心：訓練跳轉邏輯 (iframe 模式) ---
+        // --- 2. 核心：訓練跳轉邏輯 (iframe 模式 + 往回搜尋) ---
         function loadTraining(typeKey) {
             const config = trainingPaths[typeKey];
             if (!config) return alert("未知的訓練類型");
 
-            // 修改：改用 API 網址
-            const csvUrl = "http://localhost:3000/get-csv?t=" + Date.now();
+            const csvUrl = "/get-csv?t=" + Date.now();
 
             Papa.parse(csvUrl, {
                 download: true,
@@ -444,23 +445,17 @@
                 skipEmptyLines: true,
                 complete: function (results) {
                     const rows = results.data;
+                    let suggestion = 'middle'; // 預設
 
-                    // 預設等級 (如果都找不到就用這個)
-                    let suggestion = 'middle';
-
-                    // 🔍 關鍵修改：從「最後一行」開始「往回找」
-                    // 這樣可以跳過無效的空行，或資料缺失的行
+                    // ✅ 往回搜尋最近的有效紀錄
                     for (let i = rows.length - 1; i >= 0; i--) {
                         let val = rows[i][config.column];
-
-                        // 確保值存在，並去除前後空白
-                        if (val) {
+                        if (val && val.trim() !== '') {
                             val = val.trim();
-                            // 確認這個值是我們認識的等級 (lower, middle, upper...)
                             if (levelFileMap[val]) {
                                 suggestion = val;
                                 console.log(`[系統] 找到最新有效紀錄 (Row ${i}): ${suggestion}`);
-                                break; // 找到了！停止搜尋
+                                break;
                             }
                         }
                     }
@@ -480,7 +475,7 @@
             });
         }
 
-        // --- 3. 更新個人頁面 (含 詳細數據卡片 + 歷史表格) ---
+        // --- 3. 更新個人頁面 (含修正後的建議等級邏輯) ---
         function updatePersonalData() {
             if (globalCSVData.length === 0) return;
 
@@ -492,10 +487,8 @@
             else if (typeKey === 'kettlebell') csvPosenName = 'advances';
             else if (typeKey === 'sitting') csvPosenName = 'sitting';
 
-            // 篩選出該項目的所有資料
             const filteredRows = globalCSVData.filter(row => {
                 if (!row['Posen']) return false;
-                // 寬鬆匹配，包含該關鍵字即算
                 if (typeKey === 'squat') return row['Posen'].includes('squats') || row['Posen'] === 'lower' || row['Posen'] === 'middle';
                 if (typeKey === 'kettlebell') return row['Posen'].includes('advances') || row['Posen'] === 'upper';
                 if (typeKey === 'sitting') return row['Posen'].includes('sitting');
@@ -512,13 +505,22 @@
             }
             renderMyRadarChart(radarScores);
 
-            // B. 更新詳細數據卡片文字
+            // B. 更新詳細數據 (✅ 修正：往回搜尋有效建議)
             let feKey = '', teKey = '', levelKey = '';
             if (typeKey === 'squat') { feKey = 'Squats_FE'; teKey = 'Squats_TE'; levelKey = 'last_squats_train_level'; }
             else if (typeKey === 'kettlebell') { feKey = 'Advances_FE'; teKey = 'Advances_TE'; levelKey = 'last_advances_train_level'; }
             else { feKey = 'Sitting_FE'; teKey = 'Sitting_TE'; levelKey = 'last_sitting_train_level'; }
 
-            const suggestionRaw = latest[levelKey] || 'middle';
+            // 搜尋最近一次有效的建議等級
+            let suggestionRaw = 'middle';
+            for (let i = filteredRows.length - 1; i >= 0; i--) {
+                const val = filteredRows[i][levelKey];
+                if (val && val.trim() !== '') {
+                    suggestionRaw = val.trim();
+                    break;
+                }
+            }
+
             const listHtml = `
                 <p>最近訓練: <span>${latest['Tid'] ? new Date(latest['Tid']).toLocaleString() : '無紀錄'}</span></p>
                 <p>訓練項目: <span>${displayMap[typeKey]}</span></p>
@@ -529,11 +531,11 @@
             `;
             document.getElementById('dataListContent').innerHTML = listHtml;
 
-            // C. 渲染歷史表格 (新增功能)
+            // C. 渲染歷史表格
             renderHistoryTable(filteredRows, typeKey);
         }
 
-        // --- 新增：歷史表格渲染函式 ---
+        // --- 歷史表格渲染函式 ---
         function renderHistoryTable(rows, typeKey) {
             const container = document.getElementById('historyTableContainer');
             container.innerHTML = '';
@@ -543,47 +545,33 @@
                 return;
             }
 
-            // 反轉陣列以顯示最新的在上面，並只取前 50 筆以免頁面太長
             const displayRows = [...rows].reverse().slice(0, 50);
             const columns = TABLE_COLUMNS[typeKey];
 
-            // 建立表格 HTML
             let tableHtml = '<table style="width:100%; border-collapse: collapse; font-size: 0.95rem;">';
-
-            // 表頭
             tableHtml += '<thead style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;"><tr>';
             columns.forEach(col => {
                 tableHtml += `<th style="padding: 12px; text-align: left;">${HEADER_MAP[col] || col}</th>`;
             });
-            tableHtml += '</tr></thead>';
-
-            // 表格內容
-            tableHtml += '<tbody>';
+            tableHtml += '</tr></thead><tbody>';
+            
             displayRows.forEach(row => {
                 tableHtml += '<tr style="border-bottom: 1px solid #eee;">';
                 columns.forEach(col => {
                     let val = row[col] || '-';
-
-                    // 特殊格式處理
                     if (col === 'Tid') {
-                        // 簡化時間顯示
                         try { val = new Date(val).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { }
                     } else if (col.startsWith('last_')) {
-                        // 顯示中文等級
                         val = displayMap[val] || val;
                     }
-
-                    // 樣式微調：錯誤次數紅色，正確次數綠色
                     let style = 'padding: 12px;';
                     if (col.includes('_FE') && val != '0' && val != '-') style += 'color: red; font-weight:bold;';
                     if (col.includes('_TE') && val != '0' && val != '-') style += 'color: green; font-weight:bold;';
-
                     tableHtml += `<td style="${style}">${val}</td>`;
                 });
                 tableHtml += '</tr>';
             });
             tableHtml += '</tbody></table>';
-
             container.innerHTML = tableHtml;
         }
 
@@ -626,7 +614,6 @@
                 if (iframe && iframe.src) iframe.src = "";
             }
 
-            // ✅ 修正：每次進入「我的數據」頁面，都強制重新從伺服器抓取最新的 CSV
             if (pageId === 'personal') {
                 fetchCsvData();
             }
