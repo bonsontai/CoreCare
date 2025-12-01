@@ -24,6 +24,22 @@ app.use(cors());
 app.use(express.json());
 
 // --- 路由定義 ---
+
+app.get('/get-csv', (req, res) => {
+    fs.readFile(csvPath, 'utf8', (err, data) => {
+        if (err) {
+            console.error('讀取 CSV 失敗:', err);
+            // 如果檔案不存在，回傳空字串或標頭
+            return res.send('');
+        }
+        // 設定不快取
+        res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.header('Pragma', 'no-cache');
+        res.header('Expires', '0');
+        res.send(data);
+    });
+});
+
 app.use(express.static(path.join(__dirname)));
 
 

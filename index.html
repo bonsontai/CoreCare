@@ -412,14 +412,15 @@
 
         // --- 1. 讀取 CSV 資料庫 ---
         function fetchCsvData() {
-            Papa.parse("person.csv?t=" + Date.now(), {
+            const csvUrl = "http://localhost:3000/get-csv?t=" + Date.now()
+            Papa.parse(csvUrl, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function (results) {
                     console.log("CSV 讀取成功", results.data.length + " 筆資料");
                     globalCSVData = results.data;
-                    if(document.getElementById('personal').classList.contains('active-section')){
+                    if (document.getElementById('personal').classList.contains('active-section')) {
                         updatePersonalData();
                     }
                 },
@@ -434,22 +435,24 @@
             const config = trainingPaths[typeKey];
             if (!config) return alert("未知的訓練類型");
 
-            // 加入時間戳記避免快取
-            Papa.parse("person.csv?t=" + Date.now(), {
+            // 修改：改用 API 網址
+            const csvUrl = "http://localhost:3000/get-csv?t=" + Date.now();
+
+            Papa.parse(csvUrl, {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
-                complete: function(results) {
+                complete: function (results) {
                     const rows = results.data;
-                    
+
                     // 預設等級 (如果都找不到就用這個)
                     let suggestion = 'middle';
-                    
+
                     // 🔍 關鍵修改：從「最後一行」開始「往回找」
                     // 這樣可以跳過無效的空行，或資料缺失的行
                     for (let i = rows.length - 1; i >= 0; i--) {
                         let val = rows[i][config.column];
-                        
+
                         // 確保值存在，並去除前後空白
                         if (val) {
                             val = val.trim();
@@ -469,7 +472,7 @@
                     iframe.src = targetUrl;
                     navigateTo('training');
                 },
-                error: function() {
+                error: function () {
                     console.error("CSV 讀取失敗，使用預設值 middle");
                     document.getElementById('trainingFrame').src = `${config.folder}/middle.html`;
                     navigateTo('training');
@@ -481,8 +484,8 @@
         function updatePersonalData() {
             if (globalCSVData.length === 0) return;
 
-            const typeKey = document.getElementById('statsType').value; 
-            
+            const typeKey = document.getElementById('statsType').value;
+
             // 定義篩選規則
             let csvPosenName = '';
             if (typeKey === 'squat') csvPosenName = 'squats';
@@ -500,7 +503,7 @@
             });
 
             const latest = filteredRows.length > 0 ? filteredRows[filteredRows.length - 1] : {};
-            
+
             // A. 繪製雷達圖
             let radarScores = [0, 0, 0, 0];
             if (typeof calculateRadarData === 'function') {
@@ -546,7 +549,7 @@
 
             // 建立表格 HTML
             let tableHtml = '<table style="width:100%; border-collapse: collapse; font-size: 0.95rem;">';
-            
+
             // 表頭
             tableHtml += '<thead style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;"><tr>';
             columns.forEach(col => {
@@ -560,11 +563,11 @@
                 tableHtml += '<tr style="border-bottom: 1px solid #eee;">';
                 columns.forEach(col => {
                     let val = row[col] || '-';
-                    
+
                     // 特殊格式處理
                     if (col === 'Tid') {
                         // 簡化時間顯示
-                        try { val = new Date(val).toLocaleString('zh-TW', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e){}
+                        try { val = new Date(val).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { }
                     } else if (col.startsWith('last_')) {
                         // 顯示中文等級
                         val = displayMap[val] || val;
@@ -614,18 +617,18 @@
         function navigateTo(pageId) {
             document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active-section'));
             document.getElementById(pageId).classList.add('active-section');
-            
+
             const navLinks = document.getElementById('navLinks');
-            if(navLinks) navLinks.classList.remove('active');
+            if (navLinks) navLinks.classList.remove('active');
 
             if (pageId !== 'training') {
                 const iframe = document.getElementById('trainingFrame');
-                if (iframe && iframe.src) iframe.src = ""; 
+                if (iframe && iframe.src) iframe.src = "";
             }
 
             // ✅ 修正：每次進入「我的數據」頁面，都強制重新從伺服器抓取最新的 CSV
             if (pageId === 'personal') {
-                fetchCsvData(); 
+                fetchCsvData();
             }
         }
 

@@ -68,7 +68,8 @@ window.SquatTrainer = {
 
     getOtherTrainLevels: async function () {
         try {
-            const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+            const urlWithCacheBuster = 'http://localhost:3000/get-csv?t=' + Date.now();
+            
             const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
 
             if (!response.ok) {
