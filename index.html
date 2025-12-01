@@ -410,10 +410,10 @@
             'sitting': ['Tid', 'Level', 'Sitting_FE', 'Sitting_TE', 'last_sitting_train_level']
         };
 
-        // --- 1. 讀取 CSV 資料庫 (已改用 API) ---
+        // --- 1. 讀取 CSV 資料庫 (✅ 修正：指向 Port 3000) ---
         function fetchCsvData() {
-            // ✅ 使用 /get-csv API 讀取，避免快取
-            const csvUrl = "/get-csv?t=" + Date.now();
+            // ✅ 使用 http://localhost:3000 指向後端 API，避免 Nginx (Port 80) 404
+            const csvUrl = "http://localhost:3000/get-csv?t=" + Date.now();
             
             Papa.parse(csvUrl, {
                 download: true,
@@ -432,12 +432,13 @@
             });
         }
 
-        // --- 2. 核心：訓練跳轉邏輯 (iframe 模式 + 往回搜尋) ---
+        // --- 2. 核心：訓練跳轉邏輯 (✅ 修正：指向 Port 3000) ---
         function loadTraining(typeKey) {
             const config = trainingPaths[typeKey];
             if (!config) return alert("未知的訓練類型");
 
-            const csvUrl = "/get-csv?t=" + Date.now();
+            // ✅ 使用 http://localhost:3000 指向後端 API
+            const csvUrl = "http://localhost:3000/get-csv?t=" + Date.now();
 
             Papa.parse(csvUrl, {
                 download: true,
@@ -475,7 +476,7 @@
             });
         }
 
-        // --- 3. 更新個人頁面 (含修正後的建議等級邏輯) ---
+        // --- 3. 更新個人頁面 (✅ 修正：往回搜尋有效建議) ---
         function updatePersonalData() {
             if (globalCSVData.length === 0) return;
 
@@ -505,13 +506,13 @@
             }
             renderMyRadarChart(radarScores);
 
-            // B. 更新詳細數據 (✅ 修正：往回搜尋有效建議)
+            // B. 更新詳細數據 (✅ 關鍵修正：往回搜尋有效建議)
             let feKey = '', teKey = '', levelKey = '';
             if (typeKey === 'squat') { feKey = 'Squats_FE'; teKey = 'Squats_TE'; levelKey = 'last_squats_train_level'; }
             else if (typeKey === 'kettlebell') { feKey = 'Advances_FE'; teKey = 'Advances_TE'; levelKey = 'last_advances_train_level'; }
             else { feKey = 'Sitting_FE'; teKey = 'Sitting_TE'; levelKey = 'last_sitting_train_level'; }
 
-            // 搜尋最近一次有效的建議等級
+            // 搜尋最近一次有效的建議等級 (忽略 Stopped 造成的空值)
             let suggestionRaw = 'middle';
             for (let i = filteredRows.length - 1; i >= 0; i--) {
                 const val = filteredRows[i][levelKey];
