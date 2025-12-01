@@ -434,27 +434,43 @@
             const config = trainingPaths[typeKey];
             if (!config) return alert("未知的訓練類型");
 
+            // 加入時間戳記避免快取
             Papa.parse("person.csv?t=" + Date.now(), {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
                     const rows = results.data;
-                    const lastRow = rows[rows.length - 1] || {};
                     
-                    let suggestion = lastRow[config.column];
-                    if (!suggestion || !levelFileMap[suggestion]) {
-                        suggestion = 'middle';
+                    // 預設等級 (如果都找不到就用這個)
+                    let suggestion = 'middle';
+                    
+                    // 🔍 關鍵修改：從「最後一行」開始「往回找」
+                    // 這樣可以跳過無效的空行，或資料缺失的行
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                        let val = rows[i][config.column];
+                        
+                        // 確保值存在，並去除前後空白
+                        if (val) {
+                            val = val.trim();
+                            // 確認這個值是我們認識的等級 (lower, middle, upper...)
+                            if (levelFileMap[val]) {
+                                suggestion = val;
+                                console.log(`[系統] 找到最新有效紀錄 (Row ${i}): ${suggestion}`);
+                                break; // 找到了！停止搜尋
+                            }
+                        }
                     }
 
                     const targetUrl = `${config.folder}/${levelFileMap[suggestion]}`;
-                    console.log(`[系統] 載入訓練: ${targetUrl} (等級: ${suggestion})`);
+                    console.log(`[系統] 最終載入訓練: ${targetUrl} (等級: ${suggestion})`);
 
                     const iframe = document.getElementById('trainingFrame');
                     iframe.src = targetUrl;
                     navigateTo('training');
                 },
                 error: function() {
+                    console.error("CSV 讀取失敗，使用預設值 middle");
                     document.getElementById('trainingFrame').src = `${config.folder}/middle.html`;
                     navigateTo('training');
                 }
