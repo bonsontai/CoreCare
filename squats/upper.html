@@ -176,7 +176,12 @@
     </script>
 
     <script src="UI.js"></script>
-    <script src="middleAndupper_train.js"></script>
+    <script>
+        // 動態載入 JS 並加上時間戳，強制瀏覽器讀取最新邏輯
+        const script = document.createElement('script');
+        script.src = "middleAndupper_train.js?v=" + new Date().getTime();
+        document.body.appendChild(script);
+    </script>
 </body>
 
 </html>

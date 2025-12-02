@@ -236,7 +236,7 @@ window.SquatTrainer = {
             const nextLevel = this.getDynamicLevel('promote');
             await this.saveTrainingData('promote_auto', nextLevel.level);
             console.error("【跳轉主選單】資料儲存完畢。");
-            window.location.href = '../main.html';
+            window.top.location.href = '../index.html';
           }
         }
       ]);
@@ -485,5 +485,9 @@ window.SquatTrainer = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  window.SquatTrainer.init();
+  if (window.SquatTrainer) {
+        window.SquatTrainer.init();
+    } else {
+        console.error("SquatTrainer 未定義，請檢查腳本載入順序！");
+    }
 });
