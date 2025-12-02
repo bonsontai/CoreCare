@@ -251,10 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
         levelKey = DEFAULT_LEVEL_KEY;
       }
 
-      // ⭐️ 關鍵：設定全域變數供 squats_train.js 使用 ⭐️
-      window.currentTrainLevel = levelKey;
-
-      console.log(`成功讀取 person.csv，並將當前訓練器 Level 設定為: ${levelKey}`);
+      if (!window.currentTrainLevel) {
+        window.currentTrainLevel = levelKey;
+        console.log(`頁面未指定等級，使用 CSV 紀錄: ${levelKey}`);
+      } else {
+        console.log(`頁面已指定等級為: ${window.currentTrainLevel}，忽略 CSV 紀錄 (${levelKey})`);
+      }
 
     })
     .catch(error => {
