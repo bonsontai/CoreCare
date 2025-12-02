@@ -80,7 +80,8 @@ window.SquatTrainer = {
 
   getOtherTrainLevels: async function () {
     try {
-      const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+      const urlWithCacheBuster = 'http://localhost:3000/get-csv?t=' + Date.now();
+
       const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
 
       if (!response.ok) {
@@ -149,7 +150,7 @@ window.SquatTrainer = {
       this.errorCount = 0;
       this.resetState('IDLE');
       this.updateUI();
-      this.showCoachMessage('訓練開始', '請準備「站」姿。', 'info');
+      this.showCoachMessage('訓練開始', '請準備「站立」定位。', 'info');
     }
   },
 
@@ -163,7 +164,7 @@ window.SquatTrainer = {
       case 'IDLE':
         if (poseName === '站') {
           this.currentState = 'STARTED_STAND';
-          this.showCoachMessage('動作開始', '偵測到「站」，請下蹲至接近椅面即可。', 'info');
+          this.showCoachMessage('動作開始', '偵測到「站立」，請下蹲至接近椅面即可。', 'info');
           this.clearTimers();
           this.sitTimeoutTimer = setTimeout(() => { this.logError('錯誤：20秒內未達「底點」。'); }, this.SIT_TIMEOUT_DURATION);
         }
@@ -174,7 +175,7 @@ window.SquatTrainer = {
       case 'GOING_DOWN':
         if (poseName === '坐') {
           this.currentState = 'SITTING';
-          this.showCoachMessage('到達定點', '偵測到「坐」，請開始上升至站立。', 'info');
+          this.showCoachMessage('到達定點', '偵測到「下蹲姿勢」，請開始上升至站立。', 'info');
           clearTimeout(this.sitTimeoutTimer); this.sitTimeoutTimer = null;
           this.sitHoldTimer = setTimeout(() => { this.logError('錯誤：坐姿停留超過3秒。'); }, this.SIT_HOLD_LIMIT);
         } else if (poseName === '站') { this.logError('動作錯誤：動作未完成，中途站起。'); }
@@ -217,7 +218,7 @@ window.SquatTrainer = {
             this.isTraining = true;
             this.isSessionSaved = false;
             this.resetState('IDLE');
-            this.showCoachMessage('繼續訓練', '請準備下一次「站」姿。', 'info');
+            this.showCoachMessage('繼續訓練', '請準備下一次「站立」定位。', 'info');
           }
         }
       ]);
@@ -252,7 +253,7 @@ window.SquatTrainer = {
       if (this.isTraining) {
         this.isTimerLocked = false;
         this.resetState('IDLE');
-        this.showCoachMessage('下一組', '請準備下一次「站」姿。', 'info');
+        this.showCoachMessage('下一組', '請準備下一次「站立」定位。', 'info');
       }
     }, 3000);
   },
