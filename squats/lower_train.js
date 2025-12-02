@@ -491,11 +491,13 @@ window.SquatTrainer = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 確保 window.SquatTrainer 存在再執行
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.SquatTrainer) window.SquatTrainer.init();
+    });
+} else {
+    // DOM 已經準備好了 (interactive 或 complete)，直接執行
     if (window.SquatTrainer) {
         window.SquatTrainer.init();
-    } else {
-        console.error("SquatTrainer 未定義，請檢查腳本載入順序！");
     }
-});
+}

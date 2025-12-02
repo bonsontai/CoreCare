@@ -485,10 +485,12 @@ window.SquatTrainer = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (window.SquatTrainer) {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.SquatTrainer) window.SquatTrainer.init();
+    });
+} else {
+    if (window.SquatTrainer) {
         window.SquatTrainer.init();
-    } else {
-        console.error("SquatTrainer 未定義，請檢查腳本載入順序！");
     }
-});
+}
