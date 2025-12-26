@@ -68,7 +68,8 @@ window.SquatTrainer = {
 
     getOtherTrainLevels: async function () {
         try {
-            const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+            const urlWithCacheBuster = 'http://localhost:3000/get-csv?t=' + Date.now();
+            
             const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
 
             if (!response.ok) {
@@ -136,7 +137,7 @@ window.SquatTrainer = {
             this.errorCount = 0;
             this.resetState('IDLE');
             this.updateUI();
-            this.showCoachMessage('訓練開始', '請準備「站」姿。', 'info');
+            this.showCoachMessage('訓練開始', '請準備站立就定位。', 'info');
         }
     },
 
@@ -158,7 +159,7 @@ window.SquatTrainer = {
                 // 等待站姿，準備開始下蹲
                 if (poseName === this.LOWER_POSE_STAND) {
                     this.currentState = 'STANDING';
-                    this.showCoachMessage('動作開始', '偵測到「站」，請緩慢下蹲。', 'info');
+                    this.showCoachMessage('動作開始', '偵測到「站立」，請緩慢下蹲至定點。', 'info');
                 }
                 break;
 
@@ -166,7 +167,7 @@ window.SquatTrainer = {
                 // 從站立進入下蹲底點
                 if (poseName === this.LOWER_POSE_SQUAT) {
                     this.currentState = 'SQUATTING';
-                    this.showCoachMessage('到達定點', '偵測到「蹲」，請緩慢站起。', 'info');
+                    this.showCoachMessage('到達定點', '偵測到「下蹲姿勢」，請緩慢站起。', 'info');
                 }
                 // 如果是 stand，則維持 STANDING 狀態等待 squat
                 break;
@@ -210,7 +211,7 @@ window.SquatTrainer = {
                         action: () => {
                             this.isTraining = true;
                             this.isSessionSaved = false;
-                            this.showCoachMessage('繼續訓練', '請準備下一次「站」姿。', 'info');
+                            this.showCoachMessage('繼續訓練', '請準備下一次「站立」定位。', 'info');
                         }
                     }
                 ]);
@@ -223,7 +224,7 @@ window.SquatTrainer = {
         }
 
         // 檢查里程碑 4: 總共 10 次正確
-        if (this.correctCount === 10) {
+        if (this.correctCount === 5) {
             this.isTraining = false;
             this.resetState('IDLE');
 
@@ -235,7 +236,8 @@ window.SquatTrainer = {
                         await this.saveTrainingData('promote_auto', nextLevel.level);
                         console.error("【跳轉主選單】資料儲存完畢。");
                         // 導向主選單 (假設 main.html 在上層目錄)
-                        window.location.href = '../main.html';
+
+                        window.top.location.href = '../index.html';
                     }
                 }
             ]);
@@ -251,7 +253,7 @@ window.SquatTrainer = {
             if (this.isTraining) {
                 this.isTimerLocked = false;
                 this.resetState('IDLE');
-                this.showCoachMessage('下一組', '請準備下一次「站」姿。', 'info');
+                this.showCoachMessage('下一組', '請準備下一次「站立」定位。', 'info');
             }
             this.nextSetTimer = null;
         }, 3000);
@@ -270,8 +272,8 @@ window.SquatTrainer = {
         const totalAttempts = this.correctCount + this.errorCount;
 
         // 檢查里程碑 2: 前 3 次測試結束 (3 Error / 0 Correct)
-        if (totalAttempts === 3) {
-            if (this.errorCount === 3 && this.correctCount === 0) {
+        if (totalAttempts === 2) {
+            if (this.errorCount === 2 && this.correctCount === 0) {
                 // 3 Error: 進入退階
                 this.isTraining = false;
                 this.showCoachMessage('訓練調整', '系統偵測您連續 3 次動作錯誤，將為您調整至較簡單的訓練。', 'error', [
@@ -291,7 +293,7 @@ window.SquatTrainer = {
         }
 
         // 檢查里程碑 5: 累計 5 次錯誤
-        if (this.errorCount === 5) {
+        if (this.errorCount === 3) {
             this.isTraining = false;
             this.showCoachMessage('訓練調整', '累計 5 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
                 {
@@ -306,7 +308,7 @@ window.SquatTrainer = {
         }
 
         // --- 標準錯誤訊息 ---
-        if (this.isTraining && totalAttempts !== 3 && this.errorCount < 5) {
+        if (this.isTraining && totalAttempts !== 3 && this.errorCount < 3) {
 
             // 1. 顯示錯誤訊息 (無按鈕)
             this.showCoachMessage('姿勢錯誤，請調整！', message, 'error');
@@ -489,6 +491,13 @@ window.SquatTrainer = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.SquatTrainer.init();
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.SquatTrainer) window.SquatTrainer.init();
+    });
+} else {
+    // DOM 已經準備好了 (interactive 或 complete)，直接執行
+    if (window.SquatTrainer) {
+        window.SquatTrainer.init();
+    }
+}

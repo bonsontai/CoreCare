@@ -198,24 +198,6 @@ function drawPose(pose) {
 // 啟動按鈕改為觸發 TM 的 init
 startButton.addEventListener('click', init);
 // --- 其他邏輯保持不變 ---
-
-function positionControlArea() {
-  const frame3 = document.querySelector('.frame3');
-  const controlArea = document.querySelector('.control-area');
-
-  if (frame3 && controlArea) {
-    const frame3Rect = frame3.getBoundingClientRect();
-
-    // ⭐️ 關鍵：將 controlArea 的 top 設為 frame3 的底部位置 + 20px 間距
-    controlArea.style.position = 'absolute'; // 確保它是絕對定位 
-    controlArea.style.top = (frame3Rect.bottom + 20) + 'px';
-    controlArea.style.bottom = 'auto'; // 確保 bottom 屬性被清除
-  }
-}
-
-window.addEventListener('load', positionControlArea);
-window.addEventListener('resize', positionControlArea);
-
 // ------------------------------------------------------------------
 // 3. CSV 讀取與 Level 初始化 (已移除 UI 更新)
 // ------------------------------------------------------------------
@@ -269,10 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
         levelKey = DEFAULT_LEVEL_KEY;
       }
 
-      // ⭐️ 關鍵：設定全域變數供 squats_train.js 使用 ⭐️
-      window.currentTrainLevel = levelKey;
-
-      console.log(`成功讀取 person.csv，並將當前訓練器 Level 設定為: ${levelKey}`);
+      if (!window.currentTrainLevel) {
+        window.currentTrainLevel = levelKey;
+        console.log(`頁面未指定等級，使用 CSV 紀錄: ${levelKey}`);
+      } else {
+        console.log(`頁面已指定等級為: ${window.currentTrainLevel}，忽略 CSV 紀錄 (${levelKey})`);
+      }
 
     })
     .catch(error => {

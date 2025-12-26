@@ -21,7 +21,7 @@ window.SquatTrainer = {
   sitHoldTimer: null,
   errorTimer: null,     // <-- 錯誤訊息的定時器
   SIT_TIMEOUT_DURATION: 20000,
-  SIT_HOLD_LIMIT: 3000,
+  SIT_HOLD_LIMIT: 10000,
   coachMessage: null,
   coachHeader: null,
   coachTitle: null,
@@ -80,7 +80,8 @@ window.SquatTrainer = {
 
   getOtherTrainLevels: async function () {
     try {
-      const urlWithCacheBuster = '../person.csv?t=' + Date.now(); // 假設 person.csv 在上層目錄
+      const urlWithCacheBuster = 'http://localhost:3000/get-csv?t=' + Date.now();
+
       const response = await fetch(urlWithCacheBuster, { cache: 'no-store' });
 
       if (!response.ok) {
@@ -149,7 +150,7 @@ window.SquatTrainer = {
       this.errorCount = 0;
       this.resetState('IDLE');
       this.updateUI();
-      this.showCoachMessage('訓練開始', '請準備「站」姿。', 'info');
+      this.showCoachMessage('訓練開始', '請準備「站立」定位。', 'info');
     }
   },
 
@@ -163,7 +164,7 @@ window.SquatTrainer = {
       case 'IDLE':
         if (poseName === '站') {
           this.currentState = 'STARTED_STAND';
-          this.showCoachMessage('動作開始', '偵測到「站」，請下蹲至接近椅面即可。', 'info');
+          this.showCoachMessage('動作開始', '偵測到「站立」，請下蹲至接近椅面即可。', 'info');
           this.clearTimers();
           this.sitTimeoutTimer = setTimeout(() => { this.logError('錯誤：20秒內未達「底點」。'); }, this.SIT_TIMEOUT_DURATION);
         }
@@ -174,7 +175,7 @@ window.SquatTrainer = {
       case 'GOING_DOWN':
         if (poseName === '坐') {
           this.currentState = 'SITTING';
-          this.showCoachMessage('到達定點', '偵測到「坐」，請開始上升至站立。', 'info');
+          this.showCoachMessage('到達定點', '偵測到「下蹲姿勢」，請開始上升至站立。', 'info');
           clearTimeout(this.sitTimeoutTimer); this.sitTimeoutTimer = null;
           this.sitHoldTimer = setTimeout(() => { this.logError('錯誤：坐姿停留超過3秒。'); }, this.SIT_HOLD_LIMIT);
         } else if (poseName === '站') { this.logError('動作錯誤：動作未完成，中途站起。'); }
@@ -200,10 +201,10 @@ window.SquatTrainer = {
     this.updateUI();
     console.log(`[LOG] 動作成功！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`); // 添加日誌
 
-    // 檢查里程碑 1: 前 3 下全對
-    if (this.correctCount === 3 && this.errorCount === 0) {
+    // 檢查里程碑 1: 前 2 下全對
+    if (this.correctCount === 2 && this.errorCount === 0) {
       this.isTraining = false;
-      this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [
+      this.showCoachMessage('今日初評，表現優異！', '您已連續 2 次正確完成！是否要挑戰進階訓練？', 'success', [
         {
           text: '進階訓練',
           action: async () => {
@@ -217,7 +218,7 @@ window.SquatTrainer = {
             this.isTraining = true;
             this.isSessionSaved = false;
             this.resetState('IDLE');
-            this.showCoachMessage('繼續訓練', '請準備下一次「站」姿。', 'info');
+            this.showCoachMessage('繼續訓練', '請準備下一次「站立」定位。', 'info');
           }
         }
       ]);
@@ -225,18 +226,18 @@ window.SquatTrainer = {
     }
 
     // 檢查里程碑 4: 總共 10 次正確
-    if (this.correctCount === 5) {
+    if (this.correctCount === 3) {
       this.isTraining = false;
       this.resetState('IDLE');
 
-      this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！', 'success', [
+      this.showCoachMessage('訓練完成！', '恭喜您完成 3 次正確的深蹲！', 'success', [
         {
           text: '回到主選單', // 🚨 更改按鈕文字
           action: async () => {
             const nextLevel = this.getDynamicLevel('promote');
             await this.saveTrainingData('promote_auto', nextLevel.level);
             console.error("【跳轉主選單】資料儲存完畢。");
-            window.location.href = '../main.html';
+            window.top.location.href = '../index.html';
           }
         }
       ]);
@@ -252,7 +253,7 @@ window.SquatTrainer = {
       if (this.isTraining) {
         this.isTimerLocked = false;
         this.resetState('IDLE');
-        this.showCoachMessage('下一組', '請準備下一次「站」姿。', 'info');
+        this.showCoachMessage('下一組', '請準備下一次「站立」定位。', 'info');
       }
     }, 3000);
   },
@@ -267,11 +268,11 @@ window.SquatTrainer = {
     console.log(`[LOG] 動作錯誤！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`);
 
     // 檢查里程碑 2: 前 3 下全錯
-    if (this.errorCount === 3 && this.correctCount === 0) {
+    if (this.errorCount === 2 && this.correctCount === 0) {
       this.isTraining = false;
-      this.showCoachMessage('訓練調整', '系統偵測您連續 3 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
+      this.showCoachMessage('訓練調整', '系統偵測您連續 2 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
         {
-          text: '確認',
+          text: '確認退階',
           action: async () => {
             const nextLevel = this.getDynamicLevel('demote');
             await this.saveAndNavigate('demote', nextLevel);
@@ -282,11 +283,11 @@ window.SquatTrainer = {
     }
 
     // 檢查里程碑 5: 總共 5 次錯誤
-    if (this.errorCount === 5) {
+    if (this.errorCount === 3) {
       this.isTraining = false;
-      this.showCoachMessage('訓練調整', '累計 5 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
+      this.showCoachMessage('訓練調整', '累計 3 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
         {
-          text: '確認',
+          text: '確認退階',
           action: async () => {
             const nextLevel = this.getDynamicLevel('demote');
             await this.saveAndNavigate('demote', nextLevel);
@@ -297,7 +298,7 @@ window.SquatTrainer = {
     }
 
     // --- 標準錯誤訊息 ---
-    if (this.isTraining && this.errorCount < 5 && !(this.errorCount === 3 && this.correctCount === 0)) {
+    if (this.isTraining && this.errorCount < 3 && !(this.errorCount === 2 && this.correctCount === 0)) {
 
       // 1. 顯示錯誤訊息 (不帶按鈕)
       console.log(`[DEBUG ERROR 1] ${new Date().getTime()} - 錯誤訊息顯示`);
@@ -484,6 +485,12 @@ window.SquatTrainer = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  window.SquatTrainer.init();
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.SquatTrainer) window.SquatTrainer.init();
+    });
+} else {
+    if (window.SquatTrainer) {
+        window.SquatTrainer.init();
+    }
+}
