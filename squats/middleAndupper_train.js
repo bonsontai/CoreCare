@@ -21,7 +21,7 @@ window.SquatTrainer = {
   sitHoldTimer: null,
   errorTimer: null,     // <-- 錯誤訊息的定時器
   SIT_TIMEOUT_DURATION: 20000,
-  SIT_HOLD_LIMIT: 3000,
+  SIT_HOLD_LIMIT: 10000,
   coachMessage: null,
   coachHeader: null,
   coachTitle: null,
@@ -201,10 +201,10 @@ window.SquatTrainer = {
     this.updateUI();
     console.log(`[LOG] 動作成功！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`); // 添加日誌
 
-    // 檢查里程碑 1: 前 3 下全對
-    if (this.correctCount === 3 && this.errorCount === 0) {
+    // 檢查里程碑 1: 前 2 下全對
+    if (this.correctCount === 2 && this.errorCount === 0) {
       this.isTraining = false;
-      this.showCoachMessage('今日初評，表現優異！', '您已連續 3 次正確完成！是否要挑戰進階訓練？', 'success', [
+      this.showCoachMessage('今日初評，表現優異！', '您已連續 2 次正確完成！是否要挑戰進階訓練？', 'success', [
         {
           text: '進階訓練',
           action: async () => {
@@ -226,11 +226,11 @@ window.SquatTrainer = {
     }
 
     // 檢查里程碑 4: 總共 10 次正確
-    if (this.correctCount === 5) {
+    if (this.correctCount === 3) {
       this.isTraining = false;
       this.resetState('IDLE');
 
-      this.showCoachMessage('訓練完成！', '恭喜您完成 10 次正確的深蹲！', 'success', [
+      this.showCoachMessage('訓練完成！', '恭喜您完成 3 次正確的深蹲！', 'success', [
         {
           text: '回到主選單', // 🚨 更改按鈕文字
           action: async () => {
@@ -268,9 +268,9 @@ window.SquatTrainer = {
     console.log(`[LOG] 動作錯誤！總次數: ${this.correctCount}, 錯誤次數: ${this.errorCount}`);
 
     // 檢查里程碑 2: 前 3 下全錯
-    if (this.errorCount === 3 && this.correctCount === 0) {
+    if (this.errorCount === 2 && this.correctCount === 0) {
       this.isTraining = false;
-      this.showCoachMessage('訓練調整', '系統偵測您連續 3 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
+      this.showCoachMessage('訓練調整', '系統偵測您連續 2 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
         {
           text: '確認退階',
           action: async () => {
@@ -283,9 +283,9 @@ window.SquatTrainer = {
     }
 
     // 檢查里程碑 5: 總共 5 次錯誤
-    if (this.errorCount === 5) {
+    if (this.errorCount === 3) {
       this.isTraining = false;
-      this.showCoachMessage('訓練調整', '累計 5 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
+      this.showCoachMessage('訓練調整', '累計 3 次動作錯誤，此訓練可能不符合您當前狀態。將為您調整至較簡單的訓練。', 'error', [
         {
           text: '確認退階',
           action: async () => {
@@ -298,7 +298,7 @@ window.SquatTrainer = {
     }
 
     // --- 標準錯誤訊息 ---
-    if (this.isTraining && this.errorCount < 5 && !(this.errorCount === 3 && this.correctCount === 0)) {
+    if (this.isTraining && this.errorCount < 3 && !(this.errorCount === 2 && this.correctCount === 0)) {
 
       // 1. 顯示錯誤訊息 (不帶按鈕)
       console.log(`[DEBUG ERROR 1] ${new Date().getTime()} - 錯誤訊息顯示`);
